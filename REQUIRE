@@ -1,0 +1,10 @@
+julia 0.5
+
+Compat
+GoogleCloud
+Mocking
+JSON
+YAML
+Requests
+HttpCommon
+DataStructures
