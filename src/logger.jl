@@ -5,6 +5,7 @@ export Logger, post
 using Base.Dates
 
 using ..Journal
+using ..utils
 using ..handler
 
 immutable Logger
@@ -19,11 +20,11 @@ immutable Logger
         children::Vector{Logger}=Logger[]
     )
         if isempty(handlers) && isempty(children)
-            Base.error("Logger must have at least one handler or at least one child logger")
+            error("Logger must have at least one handler or at least one child logger")
         end
         for child in children
             if child.level < level
-                Base.warn("Child logger will be shadowed: $(child.name)")
+                warn("Child logger will be shadowed: $(child.name)")
             end
         end
         new(name, level, handlers, children)
@@ -57,12 +58,17 @@ function post(logger::Logger, level::LogLevel, message::Any;
         return
     end
     for handler in logger.handlers
-        process(handler, timestamp, level, logger.name, message; async=async)
+        try
+            process(handler, timestamp, level, logger.name, message; async=async)
+        catch e
+            warn("Unable to process log message: ", showerror(e))
+        end
     end
     # pass message to children for processing
     for child in logger.children
         post(child, level, message; timestamp=timestamp, async=async)
     end
+    nothing
 end
 function post(logger::Logger, level::LogLevel, first::Any, second::Any, rest::Any...; kwargs...)
     # collapse strings to a single message

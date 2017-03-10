@@ -44,7 +44,12 @@ immutable WebhookHandler <: Handler
     )
         template = @eval function $(gensym(:template))(timestamp, level, name, message)
             # populate POST data with info from message or fall back to template
-            leader = Dict(:__timestamp__ => timestamp, :__level__ => level, :__name__ => name)
+            leader = Dict(
+                :__timestamp__ => timestamp,
+                :__level__ => string(level),
+                :__name__ => name,
+                :__raw__ => message,
+            )
             if isa(message, Associative)
                 leader[:__message__] = pop!(message, $message_key, nothing)
                 message = merge!(leader, message)
@@ -60,6 +65,9 @@ end
 function WebhookHandler(data::Dict{Symbol, Any})
     uri = URI(pop!(data, :uri))
     key_map = convert(Dict{Symbol, Symbol}, pop!(data, :key_map))
+    if haskey(data, :message_key)
+        data[:message_key] = Symbol(data[:message_key])
+    end
     if haskey(data, :headers)
         data[:headers] = convert(Dict{String, Any}, headers)
     end
@@ -99,7 +107,7 @@ function handler.process(handler::WebhookHandler,
     if !isnull(handler.authenticator)
         get(handler.authenticator)(handler.headers, handler.query)
     end
-    task = () -> Requests.post(handler.uri; json=data, headers=handler.headers, query=handler.query, gzip_data=handler.gzip)
+    task = () -> Requests.post(handler.uri; json=data, headers=copy(handler.headers), query=handler.query, gzip_data=handler.gzip)
     backoff(task, check, handler.max_attempts, handler.max_backoff)
 end
 

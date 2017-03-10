@@ -6,5 +6,6 @@ Mocking
 JSON
 YAML
 Requests
+URIParser
 HttpCommon
 DataStructures

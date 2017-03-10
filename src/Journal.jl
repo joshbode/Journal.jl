@@ -12,6 +12,7 @@ export
 
 using Base.Dates
 
+using Compat
 using DataStructures
 using YAML
 
@@ -19,7 +20,6 @@ using YAML
 @enum LogLevel UNSET=-2 OFF=-1 ON=0 DEBUG WARN INFO ERROR
 
 level_map = Dict(string(x) => x for x in instances(LogLevel))
-level_padding = maximum(map(length, keys(level_map)))
 Base.convert(::Type{LogLevel}, x::AbstractString) = haskey(level_map, x) ? level_map[x] : Base.error("Unknown logging level")
 
 include("utils.jl")
@@ -44,8 +44,8 @@ function __init__()
     empty!(_handlers)
 end
 
-function getlogger(name::Union{Symbol, AbstractString}, namespace::Vector{Symbol}=Symbol[])
-    name = Symbol(name)
+"""Gets a logger by name (optionally within a namespace)"""
+function getlogger(name::Symbol, namespace::Vector{Symbol}=Symbol[])
     if !haskey(_loggers, namespace)
         Base.error("Unknown namespace: [", join(namespace, ", "), "]")
     elseif !haskey(_loggers[namespace], name)
@@ -54,8 +54,9 @@ function getlogger(name::Union{Symbol, AbstractString}, namespace::Vector{Symbol
     _loggers[namespace][name]
 end
 getlogger(namespace::Vector{Symbol}=Symbol[]) = haskey(_default, namespace) ? _default[namespace] : Base.error("No default logger: [", join(namespace, ", "), "]")
-function gethandler(name::Union{Symbol, AbstractString}, namespace::Vector{Symbol}=Symbol[])
-    name = Symbol(name)
+
+"""Gets a handler by name (optionally within a namespace)"""
+function gethandler(name::Symbol, namespace::Vector{Symbol}=Symbol[])
     if !haskey(_handlers, namespace)
         Base.error("Unknown namespace: [", join(namespace, ", "), "]")
     elseif !haskey(_handlers[namespace], name)
@@ -66,7 +67,7 @@ end
 
 """Configure loggers and handlers"""
 function config(data::Dict{Symbol, Any}; namespace::Vector{Symbol}=Symbol[])
-    if isempty(namespace) && haskey(data, :namespace)
+    if isempty(namespace) && haskey(data, :namespace) && (data[:namespace] !== nothing)
         namespace = data[:namespace]
         if !isa(namespace, Vector)
             namespace = [namespace]
@@ -126,7 +127,7 @@ function config(data::Dict{Symbol, Any}; namespace::Vector{Symbol}=Symbol[])
 end
 
 """Recursively converts dictionary key/value types"""
-#deepconvert{K, V, T <: Associative{K, V}}(::Type{T}, x::Associative) = T(  # 0.6
+#deepconvert{K, V, T <: Associative{K, V}}(::Type{T}, x::Associative) = T(  # 0.6 can't come quickly enough
 deepconvert{K, V}(T::Type{Dict{K, V}}, x::Associative) = T(
     convert(K, k) => isa(v, Associative) ? deepconvert(T, v) : convert(V, v)
     for (k, v) in x

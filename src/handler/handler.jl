@@ -16,7 +16,7 @@ Handler(data::Dict{Symbol, Any}) = Handler(Symbol(pop!(data, :type)), data)
 process(handler::Handler,
     timestamp::DateTime, level::LogLevel, name::Symbol, message::Any;
     async::Bool=true
-) = Base.error("Not Implemented: process(handler::$(typeof(handler)), ...)")
+) = error("Not Implemented: process(handler::$(typeof(handler)), ...)")
 
 """Register a new handler by name"""
 function register{H <: Handler}(handler_type::Symbol, ::Type{H})
@@ -24,7 +24,7 @@ function register{H <: Handler}(handler_type::Symbol, ::Type{H})
 end
 
 """Get handler type"""
-handlertype(handler_type::Symbol) = haskey(handler_map, handler_type) ? handler_map[handler_type] : Base.error("Unknown handler type: $handler_type")
+handlertype(handler_type::Symbol) = haskey(handler_map, handler_type) ? handler_map[handler_type] : error("Unknown handler type: $handler_type")
 
 """Handler type map"""
 const handler_map = Dict{Symbol, Type}()
