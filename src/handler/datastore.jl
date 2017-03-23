@@ -38,7 +38,7 @@ immutable DatastoreHandler <: Handler
         if haskey(last(path), :name)
             error("Last path element must have no name: ", json(path))
         end
-        template = @eval function $(gensym(:template))(timestamp, level, name, message)
+        function template(timestamp, level, name, message)
             # populate POST data with info from message or fall back to template
             leader = Dict(
                 :__timestamp__ => Base.Dates.format(timestamp, ISODateTimeFormat) * "Z",
@@ -47,8 +47,8 @@ immutable DatastoreHandler <: Handler
                 :__raw__ =>  base64encode(json(message))
             )
             if isa(message, Associative)
-                if haskey(message, $message_key)
-                    leader[:__message__] = message[$message_key]
+                if haskey(message, message_key)
+                    leader[:__message__] = message[message_key]
                 end
                 message = merge!(leader, message)
             else
@@ -57,7 +57,7 @@ immutable DatastoreHandler <: Handler
             end
             Dict(
                 k => Dict(t => message[v])
-                for (k, (v, t)) in $key_map
+                for (k, (v, t)) in key_map
                 if haskey(message, v)
             )
         end
@@ -90,7 +90,6 @@ function handler.process(handler::DatastoreHandler,
     end
 
     result = GoogleCloud.datastore(:Project, :commit, handler.project;
-        debug=true,
         session=handler.session, max_attempts=handler.max_attempts, fields="indexUpdates",
         data=Dict(
             :mode => "NON_TRANSACTIONAL",

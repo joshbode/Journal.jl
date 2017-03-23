@@ -40,8 +40,10 @@ const _default = Dict{Vector{Symbol}, Logger}()
 
 function __init__()
     empty!(_loggers)
-    empty!(_default)
     empty!(_handlers)
+    empty!(_default)
+    # ensure there is at least one default logger
+    _default[Symbol[]] = Logger(:default; level=INFO, handlers=[IOHandler()])
 end
 
 """Gets a logger by name (optionally within a namespace)"""
@@ -53,6 +55,7 @@ function getlogger(name::Symbol, namespace::Vector{Symbol}=Symbol[])
     end
     _loggers[namespace][name]
 end
+getlogger(name::String, namespace::Vector{Symbol}=Symbol[]) = getlogger(Symbol(name), namespace)
 getlogger(namespace::Vector{Symbol}=Symbol[]) = haskey(_default, namespace) ? _default[namespace] : Base.error("No default logger: [", join(namespace, ", "), "]")
 
 """Gets a handler by name (optionally within a namespace)"""
@@ -64,6 +67,7 @@ function gethandler(name::Symbol, namespace::Vector{Symbol}=Symbol[])
     end
     _handlers[namespace][name]
 end
+gethandler(name::String, namespace::Vector{Symbol}=Symbol[]) = gethandler(Symbol(name), namespace)
 
 """Configure loggers and handlers"""
 function config(data::Dict{Symbol, Any}; namespace::Vector{Symbol}=Symbol[])
@@ -96,10 +100,12 @@ function config(data::Dict{Symbol, Any}; namespace::Vector{Symbol}=Symbol[])
         push!(graph, (name, map(Symbol, get(x, :children, String[]))))
     end
     unresolved = Set{Symbol}()
+    final = nothing
     while !isempty(graph)
         name, children = shift!(graph)
         if all(haskey(_loggers[namespace], x) for x in children)
             _loggers[namespace][name] = Logger(name, loggers[name]; namespace=namespace)
+            final = name
             if in(name, unresolved)
                 pop!(unresolved, name)
             end
@@ -120,6 +126,8 @@ function config(data::Dict{Symbol, Any}; namespace::Vector{Symbol}=Symbol[])
     end
     if haskey(data, :default)
         _default[namespace] = getlogger(data[:default], namespace)
+    elseif final !== nothing
+        _default[namespace] = getlogger(final, namespace)
     else
         _default[namespace] = Logger(Symbol(join(namespace, '.')); level=INFO, handlers=[IOHandler()])
     end
@@ -143,6 +151,9 @@ for level in instances(LogLevel)
     f = Symbol(lowercase(string(level)))
     @eval function $f(logger::Logger, message...; timestamp::DateTime=now(UTC), async::Bool=true, kwargs...)
         post(logger, $level, message...; timestamp=timestamp, async=async, kwargs...)
+    end
+    @eval function $f(message...; timestamp::DateTime=now(UTC), async::Bool=true, kwargs...)
+        post(getlogger(), $level, message...; timestamp=timestamp, async=async, kwargs...)
     end
 end
 

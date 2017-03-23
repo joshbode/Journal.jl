@@ -4,6 +4,8 @@ export IOHandler
 
 using Base.Dates
 
+using JSON
+
 using ...Journal
 using ..handler
 
@@ -18,7 +20,7 @@ immutable IOHandler <: Handler
         timestamp_format::Union{DateFormat, AbstractString}=ISODateTimeFormat
     )
         format = parse("\"$format\"")
-        template = @eval $(gensym(:template))(timestamp, level, name) = $format
+        template = @eval (timestamp, level, name) -> $format
         new(io, template, timestamp_format)
     end
 end
@@ -46,7 +48,7 @@ function handler.process(handler::IOHandler,
     leader = handler.template(
         Base.Dates.format(timestamp, handler.timestamp_format), level, name
     )
-    write(handler.io, leader, message, '\n')
+    println(handler.io, leader, json(message))
     flush(handler.io)
 end
 

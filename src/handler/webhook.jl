@@ -42,7 +42,7 @@ immutable WebhookHandler <: Handler
         max_backoff::TimePeriod=Second(64), max_attempts::Int64=10,
         gzip::Bool=true
     )
-        template = @eval function $(gensym(:template))(timestamp, level, name, message)
+        function template(timestamp, level, name, message)
             # populate POST data with info from message or fall back to template
             leader = Dict(
                 :__timestamp__ => timestamp,
@@ -51,13 +51,13 @@ immutable WebhookHandler <: Handler
                 :__raw__ => message,
             )
             if isa(message, Associative)
-                leader[:__message__] = pop!(message, $message_key, nothing)
+                leader[:__message__] = pop!(message, message_key, nothing)
                 message = merge!(leader, message)
             else
                 leader[:__message__] = message
                 message = leader
             end
-            merge($data, Dict(k => get(message, v, nothing) for (k, v) in $key_map))
+            merge(data, Dict(k => get(message, v, nothing) for (k, v) in key_map))
         end
         new(uri, template, headers, query, authenticator, max_backoff, max_attempts, gzip)
     end
@@ -82,7 +82,11 @@ function Base.print(io::IO, x::WebhookHandler)
 end
 Base.show(io::IO, x::WebhookHandler) = print(io, x)
 
-function check(response::Response)
+function check(response::Union{Response, Void})
+    if response === nothing
+        Base.warn("Attempt failed: Unable to contact server")
+        return false
+    end
     status = statuscode(response)
     if (div(status, 100) == 5) || (status == 429)
         reason = HttpCommon.STATUS_CODES[status]
@@ -107,7 +111,17 @@ function handler.process(handler::WebhookHandler,
     if !isnull(handler.authenticator)
         get(handler.authenticator)(handler.headers, handler.query)
     end
-    task = () -> Requests.post(handler.uri; json=data, headers=copy(handler.headers), query=handler.query, gzip_data=handler.gzip)
+    function task()
+        try
+            Requests.post(handler.uri; json=data, headers=copy(handler.headers), query=handler.query, gzip_data=handler.gzip)
+        catch e
+            if isa(e, Base.UVError) && (e.code == Base.UV_ECONNREFUSED)
+                nothing
+            else
+                throw(e)
+            end
+        end
+    end
     backoff(task, check, handler.max_attempts, handler.max_backoff)
 end
 
