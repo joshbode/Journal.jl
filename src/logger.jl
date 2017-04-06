@@ -6,39 +6,42 @@ using Base.Dates
 
 using ..Journal
 using ..utils
-using ..handler
+using ..store
 
 immutable Logger
     name::Symbol
     level::LogLevel
-    handlers::Vector{Handler}
+    stores::Vector{Store}
     children::Vector{Logger}
-    function Logger{H <: Handler}(
+    function Logger{H <: Store}(
         name::Symbol;
         level::LogLevel=Journal.UNSET,
-        handlers::Vector{H}=Handler[],
+        stores::Vector{H}=Store[],
         children::Vector{Logger}=Logger[]
     )
-        if isempty(handlers) && isempty(children)
-            error("Logger must have at least one handler or at least one child logger")
+        if isempty(stores) && isempty(children)
+            error("Logger must have at least one store or at least one child logger")
         end
         for child in children
             if child.level < level
                 warn("Child logger will be shadowed: $(child.name)")
             end
         end
-        new(name, level, handlers, children)
+        new(name, level, stores, children)
     end
 end
-function Logger(name::Symbol, data::Dict{Symbol, Any}; namespace::Vector{Symbol}=Symbol[])
+function Logger(name::Symbol, data::Dict{Symbol, Any};
+    stores::Dict{Symbol, Store}=Dict{Symbol, Store}(),
+    loggers::Dict{Symbol, Logger}=Dict{Symbol, Logger}()
+)
     if haskey(data, :level)
         data[:level] = convert(LogLevel, data[:level])
     end
-    if haskey(data, :handlers)
-        data[:handlers] = [isa(x, Union{Symbol, String}) ? gethandler(x, namespace) : Handler(x) for x in data[:handlers]]
+    if haskey(data, :stores)
+        data[:stores] = [isa(x, Union{Symbol, String}) ? stores[Symbol(x)] : Store(x) for x in data[:stores]]
     end
     if haskey(data, :children)
-        data[:children] = [isa(x, Union{Symbol, String}) ? getlogger(x, namespace) : Logger(x) for x in data[:children]]
+        data[:children] = [isa(x, Union{Symbol, String}) ? loggers[Symbol(x)] : Logger(x) for x in data[:children]]
     end
     Logger(name; data...)
 end
@@ -50,29 +53,29 @@ end
 Base.show(io::IO, x::Logger) = print(io, x)
 
 """Post a message to a logger"""
-function post(logger::Logger, level::LogLevel, message::Any;
-    timestamp::DateTime=now(UTC), async::Bool=true, kwargs...
+function post(logger::Logger, level::LogLevel, topic::AbstractString, message::Any;
+    timestamp::DateTime=now(UTC), kwargs...
 )
     if level < logger.level
         # no logging necessary
         return
     end
-    for handler in logger.handlers
+    for store in logger.stores
         try
-            process(handler, timestamp, level, logger.name, message; async=async)
+            write(store, timestamp, level, logger.name, topic, message; kwargs...)
         catch e
-            warn("Unable to process log message: ", showerror(e))
+            warn("Unable to write log message: ", showerror(e))
         end
     end
     # pass message to children for processing
     for child in logger.children
-        post(child, level, message; timestamp=timestamp, async=async)
+        post(child, level, topic, message; timestamp=timestamp, kwargs...)
     end
     nothing
 end
-function post(logger::Logger, level::LogLevel, first::Any, second::Any, rest::Any...; kwargs...)
+function post(logger::Logger, level::LogLevel, topic::AbstractString, first::Any, second::Any, rest::Any...; kwargs...)
     # collapse strings to a single message
-    post(logger, level, join([first; second; rest...], ""); kwargs...)
+    post(logger, level, topic, join([first; second; rest...], ""); kwargs...)
 end
 
 end
