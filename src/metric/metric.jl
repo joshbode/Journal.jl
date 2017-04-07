@@ -26,8 +26,10 @@ function Base.parse(::Type{Period}, x::Dict{Symbol, Any})
     T(get(x, :count, 1))
 end
 
+# map ordering to sample type
 order_map = Dict{String, Ordering}("first" => Forward, "last" => Reverse)
 
+"""Represents the input for a metric"""
 immutable Input
     period::Nullable{Period}
     frequency::Nullable{Period}
@@ -61,6 +63,8 @@ function Input(data::Dict{Symbol, Any};
     end
     Input(store, topic; data...)
 end
+
+"""Retrieves (and filters) data for an input"""
 function retrieve(x::Input;
     attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
     cutoff::Union{TimeType, Void}=nothing
@@ -98,6 +102,7 @@ function retrieve(x::Input;
     data
 end
 
+"""Represents the output for a metric"""
 immutable Output
     period::Nullable{Period}
     frequency::Nullable{Period}
@@ -138,6 +143,8 @@ function Output(data::Dict{Symbol, Any};
     data[:level] = convert(LogLevel, data[:level])
     Output(logger, topic, message; data...)
 end
+
+"""Produces the result of the metric and logs it"""
 function report{T <: Associative}(x::Output,
     data::AbstractVector{T}, series::AbstractVector, result::AbstractVector{Bool},
     leader::Function, name::AbstractString;
@@ -168,6 +175,7 @@ function report{T <: Associative}(x::Output,
     post(x.logger, x.level, x.topic, message; attributes...)
 end
 
+"""A metric, comprising an input, transformation, check and output"""
 immutable Metric
     name::String
     attributes::Dict{Symbol, Any}
@@ -198,6 +206,8 @@ function Metric(data::Dict{Symbol, Any};
     output = Output(pop!(data, :output); loggers=loggers)
     Metric(name, input, transform, check, output; data...)
 end
+
+"""Evaluates the metric"""
 function evaluate(x::Metric, leader::Function;
     attributes::Dict{Symbol, Any}=Dict{Symbol, Any},
     cutoff::Union{TimeType, Void}=nothing
@@ -221,6 +231,7 @@ function evaluate(x::Metric, leader::Function;
     )
 end
 
+"""A collection of metrics"""
 immutable Suite
     attributes::Vector{Symbol}
     leader::Function
@@ -243,15 +254,19 @@ function Suite(data::Dict{Symbol, Any};
     metrics = [Metric(deepmerge(defaults, x); stores=stores, loggers=loggers) for x in pop!(data, :metrics)]
     Suite(metrics; data...)
 end
+
+"""Runs the suite of metrics, optionally on a subset of metrics by name"""
 function Base.run(x::Suite;
     attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-    cutoff::TimeType=now()
+    cutoff::TimeType=now(),
+    metrics::AbstractVector{Symbol}=Symbol[]
 )
     missing = setdiff(x.attributes, keys(attributes))
     if !isempty(missing)
         error("Missing attributes: ", join(missing, ", "))
     end
-    for (name, metric) in x.metrics
+    metrics = isempty(metrics) ? x.metrics : filter((k, v) -> in(k, metrics), x.metrics)
+    for (name, metric) in metrics
         evaluate(metric, x.leader; attributes=attributes, cutoff=cutoff)
     end
 end

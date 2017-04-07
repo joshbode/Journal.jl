@@ -67,22 +67,35 @@ function matchdict(m::RegexMatch)
     )
 end
 
-"""
-Extracts tokens from an expression.
-
-Note: Won't consider non-local variables in closures!
-"""
-function find_tokens(x::Expr)
+"""Extracts tokens from an expression."""
+function find_tokens(x::Expr, shadow::Vector{Symbol}=Symbol[])
     args = copy(x.args)
+    shadow = copy(shadow)
     if x.head == :call
-        shift!(args)
-    elseif x.head == :(->) || !(in(x.head, [:string, :comparison, :tuple, :ref, :if]) || Base.isoperator(x.head))
+        shift!(args)  # ignore function name
+    elseif x.head == :generator
+        for vars in filter((arg) -> arg.head == :(=), args)
+            vars = first(vars.args)
+            if isa(var, Symbol)
+                push!(shadow, vars)
+            else
+                append!(shadow, vars.args)
+            end
+        end
+    elseif x.head == :(->)
+        vars = first(args)
+        if isa(vars, Symbol)
+            push!(shadow, vars)
+        else
+            append!(shadow, vars.args)
+        end
+    elseif x.head == :line
         return Symbol[]
     end
-    unique(s for arg in args for s in find_tokens(arg))
+    unique(s for arg in args for s in find_tokens(arg, shadow))
 end
-find_tokens(x::Any) = Symbol[]
-find_tokens(x::Symbol) = Base.isidentifier(x) ? [x] : Symbol[]
+find_tokens(x::Any, shadow::Vector{Symbol}) = Symbol[]  # drop everything else!
+find_tokens(x::Symbol, shadow::Vector{Symbol}) = Base.isidentifier(x) && !in(x, shadow) ? [x] : Symbol[]
 
 """Makes a complex string template function from a format string (including expressions)"""
 function make_template(format::AbstractString; names::Vector{Symbol}=Symbol[])
