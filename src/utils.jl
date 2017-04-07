@@ -101,6 +101,7 @@ find_tokens(x::Symbol, shadow::Vector{Symbol}) = Base.isidentifier(x) && !in(x, 
 function make_template(format::AbstractString; names::Vector{Symbol}=Symbol[])
     body = parse("\"$format\"")
     tokens = find_tokens(body)
+    tokens = filter!((x) -> !isdefined(Base, x), tokens)  # get rid of any Base entities (e.g. Int)
     if !isempty(names)
         extra = setdiff(tokens, names)
         if !isempty(extra)

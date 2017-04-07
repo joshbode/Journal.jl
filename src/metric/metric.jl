@@ -94,7 +94,7 @@ function retrieve(x::Input;
         finish = maximum(dates)
     end
     # if necessary, coarsen out data frequency
-    if !isnull(x.frequency)
+    if !isempty(data) && !isnull(x.frequency)
         grid = start:get(x.frequency):finish
         mask = coarsen(dates, grid; sample=x.sample)
         data = data[mask]
@@ -119,7 +119,6 @@ immutable Output
         level::LogLevel=ERROR,
         attributes::Dict{Symbol, Any}=Dict{Symbol, Any}()
     )
-        @show message
         message = make_template(message)
         new(period, frequency, sample, logger, level, topic, message, attributes)
     end
@@ -155,20 +154,20 @@ function report{T <: Associative}(x::Output,
     start = !isnull(x.period) ? finish - get(x.period) : typemin(Date)
     data = Base.filter!((x) -> (start <= x[:timestamp] <= finish), data)
     # if necessary, coarsen out data frequency
-    if !isnull(x.frequency)
+    if !isempty(data) && !isnull(x.frequency)
         grid = start:get(x.frequency):finish
         dates = [r[:timestamp] for r in data]
         mask = coarsen(dates, grid; sample=x.sample)
         data, series, result = data[mask], series[mask], result[mask]
     end
-    if all(result)
+    if !isempty(result) && all(result)
         return
     end
     # evaluate the message
     attributes = merge(attributes, x.attributes)
-    message = x.message(;
-        leader=leader(; topic=x.topic, name=name, attributes...),
-        topic=x.topic,
+    leader = leader(; topic=x.topic, name=name, attributes...)
+    message = isempty(result) ? "$header: No data present" : x.message(;
+        leader=leader, topic=x.topic,
         data=data, series=series, result=result,
         attributes...
     )
@@ -207,6 +206,11 @@ function Metric(data::Dict{Symbol, Any};
     Metric(name, input, transform, check, output; data...)
 end
 
+function Base.print(io::IO, x::Metric)
+    print(io, "name: ", x.name)
+end
+Base.show(io::IO, x::Metric) = print(io, x)
+
 """Evaluates the metric"""
 function evaluate(x::Metric, leader::Function;
     attributes::Dict{Symbol, Any}=Dict{Symbol, Any},
@@ -222,7 +226,7 @@ function evaluate(x::Metric, leader::Function;
     if x.invert
         result = !result
     end
-    if all(result)
+    if !isempty(result) && all(result)
         return
     end
     report(
@@ -235,7 +239,7 @@ end
 immutable Suite
     attributes::Vector{Symbol}
     leader::Function
-    metrics::Dict{Symbol, Metric}
+    metrics::Dict{String, Metric}
     function Suite(metrics::Vector{Metric};
         leader::AbstractString="",
         attributes::AbstractVector{Symbol}=Symbol[]
@@ -255,11 +259,17 @@ function Suite(data::Dict{Symbol, Any};
     Suite(metrics; data...)
 end
 
+function Base.print(io::IO, x::Suite)
+    println(io, "attributes: ", x.attributes)
+    print(io, "metrics: ", join(keys(x.metrics), "\n"))
+end
+Base.show(io::IO, x::Suite) = print(io, x)
+
 """Runs the suite of metrics, optionally on a subset of metrics by name"""
-function Base.run(x::Suite;
+function Base.run{S <: AbstractString}(x::Suite;
     attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
     cutoff::TimeType=now(),
-    metrics::AbstractVector{Symbol}=Symbol[]
+    metrics::AbstractVector{S}=String[]
 )
     missing = setdiff(x.attributes, keys(attributes))
     if !isempty(missing)

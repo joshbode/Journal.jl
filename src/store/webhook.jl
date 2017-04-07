@@ -59,7 +59,6 @@ end
 function Base.print(io::IO, x::WebhookStore)
     print(io, x.uri)
 end
-Base.show(io::IO, x::WebhookStore) = print(io, x)
 
 function check(response::Response)
     status = statuscode(response)
@@ -73,16 +72,17 @@ function check(response::Response)
 end
 
 function Base.write(store::WebhookStore,
-    timestamp::DateTime, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
+    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
     async::Bool=true, kwargs...
 )
     if async
-        @async write(store, timestamp, level, name, topic, message; async=false, kwargs...)
+        @async write(store, timestamp, hostname, level, name, topic, message; async=false, kwargs...)
         return
     end
 
     palette = Dict(
         :__timestamp__ => timestamp,
+        :__hostname__ => hostname,
         :__level__ => string(level),
         :__name__ => string(name),
         :__topic__ => topic,

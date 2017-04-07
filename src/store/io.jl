@@ -44,14 +44,13 @@ end
 function Base.print(io::IO, x::IOStore)
     print(io, "io: ", x.io)
 end
-Base.show(io::IO, x::IOStore) = print(io, x)
 
 function Base.write(store::IOStore,
-    timestamp::DateTime, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
+    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
     async::Bool=false, kwargs...
 )
     data = store.template(;
-        timestamp=Base.Dates.format(timestamp, store.timestamp_format),
+        timestamp=Base.Dates.format(timestamp, store.timestamp_format), hostname=hostname,
         level=level, name=name, topic=topic, message=json(message)
     )
     write(store.io, data, '\n')

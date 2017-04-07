@@ -13,6 +13,8 @@ storetype(store_type::Symbol) = haskey(store_map, store_type) ? store_map[store_
 
 abstract Store
 
+Base.show(io::IO, x::Store) = print(io, x)
+
 """Factory for Stores"""
 Store(store_type::Symbol, args...; kwargs...) = storetype(store_type)(args...; kwargs...)
 Store(store_type::Symbol, data::Dict{Symbol, Any}) = storetype(store_type)(data)
@@ -20,6 +22,9 @@ Store(data::Dict{Symbol, Any}) = Store(Symbol(pop!(data, :type)), data)
 
 """Register a new store by name"""
 function Journal.register{S <: Store}(::Type{S}, store_type::Symbol)
+    if haskey(store_map, store_type)
+        warn("Store type already exists. Overwriting: $store_type")
+    end
     store_map[store_type] = S
 end
 

@@ -54,7 +54,7 @@ Base.show(io::IO, x::Logger) = print(io, x)
 
 """Post a message to a logger"""
 function post(logger::Logger, level::LogLevel, topic::AbstractString, message::Any;
-    timestamp::DateTime=now(UTC), kwargs...
+    timestamp::DateTime=now(UTC), hostname::AbstractString=gethostname(), kwargs...
 )
     if level < logger.level
         # no logging necessary
@@ -62,14 +62,14 @@ function post(logger::Logger, level::LogLevel, topic::AbstractString, message::A
     end
     for store in logger.stores
         try
-            write(store, timestamp, level, logger.name, topic, message; kwargs...)
+            write(store, timestamp, hostname, level, logger.name, topic, message; kwargs...)
         catch e
             warn("Unable to write log message: ", showerror(e))
         end
     end
     # pass message to children for processing
     for child in logger.children
-        post(child, level, topic, message; timestamp=timestamp, kwargs...)
+        post(child, level, topic, message; timestamp=timestamp, hostname=hostname, kwargs...)
     end
     nothing
 end

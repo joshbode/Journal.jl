@@ -48,20 +48,20 @@ end
 function Base.print(io::IO, x::DatastoreStore)
     print(io, x.session)
 end
-Base.show(io::IO, x::DatastoreStore) = print(io, x)
 
 function Base.write(store::DatastoreStore,
-    timestamp::DateTime, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
+    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
     async::Bool=true, kwargs...
 )
     if async
-        @async write(store, timestamp, level, name, topic, message; async=false, kwargs...)
+        @async write(store, timestamp, hostname, level, name, topic, message; async=false, kwargs...)
         return
     end
 
     key = Dict(:path => store.path)
     properties = Dict(
         :timestamp => Dict(timestampValue => Base.Dates.format(timestamp, ISODateTimeFormat) * "Z"),
+        :hostname => Dict(stringValue => hostname),
         :level => Dict(stringValue => string(level)),
         :name => Dict(stringValue => string(name)),
         :topic => Dict(stringValue => topic),
@@ -77,6 +77,14 @@ function Base.write(store::DatastoreStore,
     end
 end
 
+date_filter(date::Date, operator::OperatorType) = date_filter(DateTime(date), operator)
+function date_filter(date::DateTime, operator::OperatorType)
+    Dict(:propertyFilter => Dict(
+        :property => Dict(:name => "timestamp"), :op => operator,
+        :value => Dict(timestampValue => Base.Dates.format(date, ISODateTimeFormat) * "Z")
+    ))
+end
+
 function Base.read{T <: Any}(store::DatastoreStore;
     start::Union{TimeType, Void}=nothing,
     finish::Union{TimeType, Void}=nothing,
@@ -86,10 +94,6 @@ function Base.read{T <: Any}(store::DatastoreStore;
         error("Start cannot be after finish: $start, $finish")
     end
 
-    projection = [
-        Dict(:property => Dict(:name => name))
-        for name in [:timestamp, :level, :name, :topic, :message]
-    ]
     kind = [Dict(:name => store.path[end][:kind])]
     filters = Dict[
         Dict(:propertyFilter => Dict(:property => Dict(:name => name), :op => EQUAL, :value => wrap(x)))
@@ -97,34 +101,16 @@ function Base.read{T <: Any}(store::DatastoreStore;
     ]
     # add timestamp ranges
     if start !== nothing
-        if isa(start, Date)
-            start = DateTime(start)
-        end
-        push!(filters, Dict(
-            :propertyFilter => Dict(
-                :property => Dict(:name => "timestamp"),
-                :op => GREATER_THAN_OR_EQUAL,
-                :value => Dict(timestampValue => Base.Dates.format(start, ISODateTimeFormat) * "Z")
-            )
-        ))
+        push!(filters, date_filter(start, GREATER_THAN_OR_EQUAL))
     end
     if finish !== nothing
-        if isa(finish, Date)
-            finish = DateTime(finish)
-        end
-        push!(filters, Dict(
-            :propertyFilter => Dict(
-                :property => Dict(:name => "timestamp"),
-                :op => LESS_THAN_OR_EQUAL,
-                :value => Dict(timestampValue => Base.Dates.format(finish, ISODateTimeFormat) * "Z")
-            )
-        ))
+        push!(filters, date_filter(finish, LESS_THAN_OR_EQUAL))
     end
     filter = !isempty(filters) ? Dict(:compositeFilter => Dict(:op => "AND", :filters => filters)) : nothing
     order = Dict(:property => Dict(:name => "timestamp"))
     result = GoogleCloud.datastore(:Project, :runQuery, store.project;
         session=store.session, max_attempts=store.max_attempts, fields="batch(entityResults(entity(properties)))",
-        data=Dict(:query => Dict(:projection => nothing, :kind => kind, :filter => filter, :order => order))
+        data=Dict(:query => Dict(:kind => kind, :filter => filter, :order => order))
     )
     if haskey(result, :error)
         error("Datastore error: ", result[:error][:message])

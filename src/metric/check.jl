@@ -12,6 +12,8 @@ checktype(check_type::Symbol) = haskey(check_map, check_type) ? check_map[check_
 
 abstract Check
 
+Base.show(io::IO, x::Check) = print(io, x)
+
 """Factory for Checks"""
 Check(check_type::Symbol, args...; kwargs...) = checktype(check_type)(args...; kwargs...)
 Check(check_type::Symbol, data::Dict{Symbol, Any}) = checktype(check_type)(data)
@@ -19,8 +21,19 @@ Check(data::Dict{Symbol, Any}) = Check(Symbol(pop!(data, :type)), data)
 
 """Register a new check by name"""
 function Journal.register{S <: Check}(::Type{S}, check_type::Symbol)
+    if haskey(check_map, check_type)
+        warn("Check type already exists. Overwriting: $check_type")
+    end
     check_map[check_type] = S
 end
+
+immutable Tautology <: Check end
+(c::Tautology)(x::AbstractVector) = trues(x)
+
+function Base.print(io::IO, x::Tautology)
+    print(io, "name: ", x.name)
+end
+
 
 immutable Range{T <: Real} <: Check
     min::T
@@ -61,6 +74,7 @@ end
 """Initialise the module: add checks to check map"""
 function __init__()
     empty!(check_map)
+    register(Tautology, :tautology)
     register(Range, :range)
     register(Value, :value)
 end
