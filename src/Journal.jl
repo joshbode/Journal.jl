@@ -42,6 +42,14 @@ immutable Namespace
     default::Logger
     suites::Dict{Symbol, Suite}
 end
+function Namespace()
+    store = IOStore()
+    logger = Logger(:_; level=INFO, stores=[store])
+    stores = Dict{Symbol, Store}(:_ => store)
+    loggers = Dict{Symbol, Logger}(:_ => logger)
+    suites = Dict{Symbol, Suite}()
+    Namespace(stores, loggers, logger, suites)
+end
 function Namespace(data::Dict{Symbol, Any})
     if !haskey(data, :stores)
         Base.error("Journal configuration is missing 'stores' key")
@@ -153,9 +161,6 @@ function config(data::Dict{Symbol, Any}; namespace::Union{Vector{Symbol}, Void}=
     elseif haskey(data, :namespace)
         pop!(data, :namespace)  # discard original namespace
     end
-    if haskey(_namespaces, namespace)
-        Base.warn("Logging namespace already configured. Overwriting: [", join(namespace, ", "), "]")
-    end
     _namespaces[namespace] = Namespace(data)
     nothing
 end
@@ -177,6 +182,7 @@ end
 
 function __init__()
     empty!(_namespaces)
+    _namespaces[Symbol[]] = Namespace()  # ensure there is at least a default logger
 end
 
 end
