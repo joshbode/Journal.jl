@@ -17,7 +17,10 @@ abstract Authenticator
 
 """Factory initialiser for custom Authenticators"""
 function Authenticator(data::Dict{Symbol, Any})
-    T = reduce(getfield, Main, map(Symbol, split(pop!(data, :type), '.')))::Type{Authenticator}
+    T = reduce(getfield, Main, map(Symbol, split(pop!(data, :type), '.')))
+    if !(T <: Authenticator)
+        error("Not an Authenticator subtype: ", T)
+    end
     T(data)
 end
 

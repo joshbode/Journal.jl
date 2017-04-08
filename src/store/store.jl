@@ -17,8 +17,7 @@ Base.show(io::IO, x::Store) = print(io, x)
 
 """Factory for Stores"""
 Store(store_type::Symbol, args...; kwargs...) = storetype(store_type)(args...; kwargs...)
-Store(store_type::Symbol, data::Dict{Symbol, Any}) = storetype(store_type)(data)
-Store(data::Dict{Symbol, Any}) = Store(Symbol(pop!(data, :type)), data)
+Store(data::Dict{Symbol, Any}; kwargs...) = Store(Symbol(pop!(data, :type)), data; kwargs...)
 
 """Register a new store by name"""
 function Journal.register{S <: Store}(::Type{S}, store_type::Symbol)

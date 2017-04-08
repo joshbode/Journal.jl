@@ -111,7 +111,7 @@ function make_template(format::AbstractString; names::Vector{Symbol}=Symbol[])
     end
     kwargs = [Expr(:kw, token, nothing) for token in tokens]
     push!(kwargs, Expr(:..., :_))
-    eval(Expr(:(->), Expr(:tuple, Expr(:parameters, kwargs...)), body))
+    eval(current_module(), Expr(:(->), Expr(:tuple, Expr(:parameters, kwargs...)), body))
 end
 
 """

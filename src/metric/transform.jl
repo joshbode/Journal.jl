@@ -16,7 +16,6 @@ Base.show(io::IO, x::Transform) = print(io, x)
 
 """Factory for Transforms"""
 Transform(transform_type::Symbol, args...; kwargs...) = transformtype(transform_type)(args...; kwargs...)
-Transform(transform_type::Symbol, data::Dict{Symbol, Any}) = transformtype(transform_type)(data)
 Transform(data::Dict{Symbol, Any}) = Transform(Symbol(pop!(data, :type)), data)
 
 """Register a new transform by name"""

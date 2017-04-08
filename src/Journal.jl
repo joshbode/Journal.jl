@@ -164,7 +164,9 @@ function config(data::Dict{Symbol, Any}; namespace::Union{Vector{Symbol}, Void}=
     _namespaces[namespace] = Namespace(data)
     nothing
 end
-config(filename::AbstractString; namespace::Union{Vector{Symbol}, Void}=nothing) = config(deepconvert(Dict{Symbol, Any}, YAML.load_file(filename)); namespace=namespace)
+config(filename::AbstractString; namespace::Union{Vector{Symbol}, Void}=nothing) = config(
+    deepconvert(Dict{Symbol, Any}, YAML.load_file(filename)); namespace=namespace
+)
 
 # create post alias for each log level
 for level in instances(LogLevel)

@@ -16,7 +16,6 @@ Base.show(io::IO, x::Check) = print(io, x)
 
 """Factory for Checks"""
 Check(check_type::Symbol, args...; kwargs...) = checktype(check_type)(args...; kwargs...)
-Check(check_type::Symbol, data::Dict{Symbol, Any}) = checktype(check_type)(data)
 Check(data::Dict{Symbol, Any}) = Check(Symbol(pop!(data, :type)), data)
 
 """Register a new check by name"""
