@@ -1,6 +1,13 @@
 module utils
 
-export deepconvert, deepmerge, backoff, coarsen, matchdict, make_template, make_parser
+export
+    lineage,
+    backoff,
+    deepconvert, deepmerge,
+    matchdict, make_template, make_parser,
+    coarsen
+
+using Compat
 
 using Base: Dates, Order
 
@@ -9,6 +16,37 @@ function Base.showerror(e::Exception)
     buffer = IOBuffer()
     showerror(buffer, e)
     String(take!(buffer))
+end
+
+PKG_DIR = Pkg.dir()
+
+"""Produces a simple function call lineage summary from the stack trace"""
+function lineage(skip::Int=0; ignore_base::Bool=true)
+    result = Tuple[]
+    frames = stacktrace()
+    for (i, frame) in enumerate(frames)
+        file = string(frame.file)
+        if i <= skip + 1
+            continue
+        elseif !Base.isidentifier(frame.func)
+            # don't show anonymous functions
+            continue
+        elseif frame.line <= 0
+            continue
+        elseif frame.func in [:include_from_node1, :eval]
+            # stop once we hit julia low-level internals
+            break
+        elseif ignore_base && !isabspath(file)
+            # ignore julia base functions
+            continue
+        end
+        rel_file = relpath(file, PKG_DIR)
+        if length(rel_file) < length(file)
+            file = rel_file
+        end
+        push!(result, (frame.func, file, frame.line))
+    end
+    join((@sprintf("%s[%s:%d]", x...) for x in result), "|")
 end
 
 """Recursively converts dictionary key/value types"""

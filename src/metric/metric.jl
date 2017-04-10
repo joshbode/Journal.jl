@@ -59,7 +59,7 @@ function Input(data::Dict{Symbol, Any};
         data[:frequency] = parse(Period, data[:frequency])
     end
     if haskey(data, :sample)
-        data[:sample] = haskey(order_map, data[:sample]) ? order_map[data[:sample]] : error("Unknown sample type: ", data[:sample])
+        data[:sample] = haskey(order_map, data[:sample]) ? order_map[data[:sample]] : error("UnkUTCnown sample type: ", data[:sample])
     end
     Input(store, topic; data...)
 end
@@ -73,7 +73,7 @@ function retrieve(x::Input;
     kwargs = Dict{Symbol, Union{TimeType, Void}}()
     if !isnull(x.period)
         if cutoff === nothing
-            cutoff = today()
+            cutoff = now(UTC)
         end
         start = kwargs[:start] = cutoff - get(x.period)
     else
@@ -150,13 +150,13 @@ function report{T <: Associative}(x::Output,
     attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
     cutoff::Union{TimeType, Void}=nothing
 )
-    finish = cutoff !== nothing ? cutoff : today()
-    start = !isnull(x.period) ? finish - get(x.period) : typemin(Date)
+    dates = [r[:timestamp] for r in data]
+    finish = cutoff !== nothing ? cutoff : maximum(dates)
+    start = !isnull(x.period) ? finish - get(x.period) : minimum(dates)
     data = Base.filter!((x) -> (start <= x[:timestamp] <= finish), data)
     # if necessary, coarsen out data frequency
     if !isempty(data) && !isnull(x.frequency)
         grid = start:get(x.frequency):finish
-        dates = [r[:timestamp] for r in data]
         mask = coarsen(dates, grid; sample=x.sample)
         data, series, result = data[mask], series[mask], result[mask]
     end
@@ -268,7 +268,7 @@ Base.show(io::IO, x::Suite) = print(io, x)
 """Runs the suite of metrics, optionally on a subset of metrics by name"""
 function Base.run{S <: AbstractString}(x::Suite;
     attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-    cutoff::TimeType=now(),
+    cutoff::TimeType=now(UTC),
     metrics::AbstractVector{S}=String[]
 )
     missing = setdiff(x.attributes, keys(attributes))

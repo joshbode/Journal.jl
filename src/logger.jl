@@ -1,6 +1,6 @@
 module logger
 
-export Logger, post
+export Logger, post, addtags!, cleartags!
 
 using Base.Dates
 
@@ -13,11 +13,13 @@ immutable Logger
     level::LogLevel
     stores::Vector{Store}
     children::Vector{Logger}
+    tags::Dict{Symbol, Any}
     function Logger{H <: Store}(
         name::Symbol;
         level::LogLevel=Journal.UNSET,
         stores::Vector{H}=Store[],
-        children::Vector{Logger}=Logger[]
+        children::Vector{Logger}=Logger[],
+        tags::Dict{Symbol, Any}=Dict{Symbol, Any}()
     )
         if isempty(stores) && isempty(children)
             error("Logger must have at least one store or at least one child logger")
@@ -27,7 +29,7 @@ immutable Logger
                 warn("Child logger will be shadowed: $(child.name)")
             end
         end
-        new(name, level, stores, children)
+        new(name, level, stores, children, tags)
     end
 end
 function Logger(name::Symbol, data::Dict{Symbol, Any};
@@ -52,6 +54,10 @@ function Base.print(io::IO, x::Logger)
 end
 Base.show(io::IO, x::Logger) = print(io, x)
 
+"""Updates tags for logger"""
+addtags!(logger::Logger, tags::Associative) = merge!(logger.tags, tags)
+cleartags!(logger::Logger) = empty!(logger.tags)
+
 """Post a message to a logger"""
 function post(logger::Logger, level::LogLevel, topic::AbstractString, message::Any;
     timestamp::DateTime=now(UTC), hostname::AbstractString=gethostname(), kwargs...
@@ -60,9 +66,10 @@ function post(logger::Logger, level::LogLevel, topic::AbstractString, message::A
         # no logging necessary
         return
     end
+    attributes = merge(logger.tags, Dict(kwargs))
     for store in logger.stores
         try
-            write(store, timestamp, hostname, level, logger.name, topic, message; kwargs...)
+            write(store, timestamp, hostname, level, logger.name, topic, message; attributes...)
         catch e
             warn("Unable to write log message: ", showerror(e))
         end
@@ -73,9 +80,9 @@ function post(logger::Logger, level::LogLevel, topic::AbstractString, message::A
     end
     nothing
 end
-function post(logger::Logger, level::LogLevel, topic::AbstractString, first::Any, second::Any, rest::Any...; kwargs...)
+function post(logger::Logger, level::LogLevel, topic::AbstractString, message::Any, rest::Any...; kwargs...)
     # collapse strings to a single message
-    post(logger, level, topic, join([first; second; rest...], ""); kwargs...)
+    post(logger, level, topic, string(message) * join(rest, ""); kwargs...)
 end
 
 end

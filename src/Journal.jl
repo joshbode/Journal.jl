@@ -50,7 +50,7 @@ function Namespace()
     suites = Dict{Symbol, Suite}()
     Namespace(stores, loggers, logger, suites)
 end
-function Namespace(data::Dict{Symbol, Any})
+function Namespace(data::Dict{Symbol, Any}; tags::Dict{Symbol, Any}=Dict{Symbol, Any}())
     if !haskey(data, :stores)
         Base.error("Journal configuration is missing 'stores' key")
     end
@@ -76,7 +76,9 @@ function Namespace(data::Dict{Symbol, Any})
     while !isempty(graph)
         name, children, x = shift!(graph)
         if all(haskey(loggers, child) for child in children)
-            loggers[name] = Logger(name, x; stores=stores, loggers=loggers)
+            logger = Logger(name, x; stores=stores, loggers=loggers)
+            addtags!(logger, tags)
+            loggers[name] = logger
             if in(name, unresolved)
                 pop!(unresolved, name)
             end
@@ -151,7 +153,10 @@ end
 getsuite(name::String, namespace::Vector{Symbol}=Symbol[]) = getsuite(Symbol(name), namespace)
 
 """Configures a namespace"""
-function config(data::Dict{Symbol, Any}; namespace::Union{Vector{Symbol}, Void}=nothing)
+function config(data::Dict{Symbol, Any};
+    namespace::Union{Vector{Symbol}, Void}=nothing,
+    tags::Dict{Symbol, Any}=Dict{Symbol, Any}()
+)
     if (namespace === nothing)
         namespace = pop!(data, :namespace, Symbol[])
         if !isa(namespace, AbstractVector)
@@ -161,12 +166,13 @@ function config(data::Dict{Symbol, Any}; namespace::Union{Vector{Symbol}, Void}=
     elseif haskey(data, :namespace)
         pop!(data, :namespace)  # discard original namespace
     end
-    _namespaces[namespace] = Namespace(data)
+    _namespaces[namespace] = Namespace(data; tags=tags)
     nothing
 end
-config(filename::AbstractString; namespace::Union{Vector{Symbol}, Void}=nothing) = config(
-    deepconvert(Dict{Symbol, Any}, YAML.load_file(filename)); namespace=namespace
-)
+config(filename::AbstractString;
+    namespace::Union{Vector{Symbol}, Void}=nothing,
+    tags::Dict{Symbol, Any}=Dict{Symbol, Any}()
+) = config(deepconvert(Dict{Symbol, Any}, YAML.load_file(filename)); namespace=namespace, tags=tags)
 
 # create post alias for each log level
 for level in instances(LogLevel)
@@ -174,11 +180,14 @@ for level in instances(LogLevel)
         continue
     end
     f = Symbol(lowercase(string(level)))
-    @eval function $f(logger::Logger, topic::AbstractString, message...; timestamp::DateTime=now(UTC), kwargs...)
-        post(logger, $level, topic, message...; timestamp=timestamp, kwargs...)
+    @eval function $f(logger::Logger, topic::AbstractString, message, rest...; timestamp::DateTime=now(UTC), kwargs...)
+        post(logger, $level, topic, message, rest...; timestamp=timestamp, kwargs...)
     end
-    @eval function $f(topic::AbstractString, message...; timestamp::DateTime=now(UTC), kwargs...)
-        post(getlogger(), $level, topic, message...; timestamp=timestamp, kwargs...)
+    @eval function $f(message, rest...; timestamp::DateTime=now(UTC),
+        logger::Logger=getlogger(), topic::AbstractString=lineage(),
+        kwargs...
+    )
+        post(logger, $level, topic, message, rest...; timestamp=timestamp, kwargs...)
     end
 end
 
