@@ -184,7 +184,7 @@ for level in instances(LogLevel)
         post(logger, $level, topic, message, rest...; timestamp=timestamp, kwargs...)
     end
     @eval function $f(message, rest...; timestamp::DateTime=now(UTC),
-        logger::Logger=getlogger(), topic::AbstractString=lineage(),
+        logger::Logger=getlogger(), topic::AbstractString=location(),
         kwargs...
     )
         post(logger, $level, topic, message, rest...; timestamp=timestamp, kwargs...)

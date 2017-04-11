@@ -1,7 +1,7 @@
 module utils
 
 export
-    lineage,
+    lineage, location, frame,
     backoff,
     deepconvert, deepmerge,
     matchdict, make_template, make_parser,
@@ -19,6 +19,20 @@ function Base.showerror(e::Exception)
 end
 
 PKG_DIR = Pkg.dir()
+
+function frame(n)
+    trace = backtrace()
+    ccall(:jl_lookup_code_address, Any, (Ptr{Void}, Cint), trace[n] - 1, false)
+end
+function location()
+    func, file, line = frame(3)[end][1:3]
+    file = string(file)
+    rel_file = relpath(file, PKG_DIR)
+    if length(rel_file) < length(file)
+        file = rel_file
+    end
+    "$func[$file:$line]"
+end
 
 """Produces a simple function call lineage summary from the stack trace"""
 function lineage(skip::Int=0; ignore_base::Bool=true)
