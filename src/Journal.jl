@@ -129,6 +129,11 @@ function getlogger(name::Symbol, namespace::Vector{Symbol}=Symbol[])
 end
 getlogger(name::String, namespace::Vector{Symbol}=Symbol[]) = getlogger(Symbol(name), namespace)
 getlogger(namespace::Vector{Symbol}=Symbol[]) = haskey(_namespaces, namespace) ? _namespaces[namespace].default : Base.error("Unknown namespace: [", join(namespace, ", "), "]")
+function Journal.getlogger(f::Function, args...; kwargs...)
+    logger = copy(getlogger(args...))
+    addtags!(logger, Dict(kwargs))
+    f(logger)
+end
 
 """Gets a store by name (optionally within a namespace)"""
 function getstore(name::Symbol, namespace::Vector{Symbol}=Symbol[])
@@ -180,14 +185,17 @@ for level in instances(LogLevel)
         continue
     end
     f = Symbol(lowercase(string(level)))
-    @eval function $f(logger::Logger, topic::AbstractString, message, rest...; timestamp::DateTime=now(UTC), kwargs...)
-        post(logger, $level, topic, message, rest...; timestamp=timestamp, kwargs...)
-    end
-    @eval function $f(message, rest...; timestamp::DateTime=now(UTC),
-        logger::Logger=getlogger(), topic::AbstractString=location(),
-        kwargs...
+    @eval function $f(logger::Logger, message...;
+        topic::AbstractString=location(), value::Any=nothing,
+        timestamp::DateTime=now(UTC), kwargs...
     )
-        post(logger, $level, topic, message, rest...; timestamp=timestamp, kwargs...)
+        post(logger, $level, topic, value, message...; timestamp=timestamp, kwargs...)
+    end
+    @eval function $f(message...; logger::Logger=getlogger(),
+        topic::AbstractString=location(), value::Any=nothing,
+        timestamp::DateTime=now(UTC), kwargs...
+    )
+        post(logger, $level, topic, value, message...; timestamp=timestamp, kwargs...)
     end
 end
 

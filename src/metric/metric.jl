@@ -221,7 +221,7 @@ function evaluate(x::Metric, leader::Function;
     end
     attributes = merge(attributes, x.attributes)
     data = retrieve(x.input; attributes=attributes, cutoff=cutoff)
-    series, range = x.transform([r[:message] for r in data])
+    series, range = x.transform([r[:value] for r in data])
     result = x.check(series)
     if x.invert
         result = !result

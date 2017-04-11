@@ -46,12 +46,17 @@ function Base.print(io::IO, x::IOStore)
 end
 
 function Base.write(store::IOStore,
-    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
+    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString,
+    value::Any, message::Any;
     async::Bool=false, kwargs...
 )
+    # don't write message-less entries
+    if message === nothing
+        return
+    end
     data = store.template(;
         timestamp=Base.Dates.format(timestamp, store.timestamp_format), hostname=hostname,
-        level=level, name=name, topic=topic, message=json(message)
+        level=level, name=name, topic=topic, value=json(value), message=json(message)
     )
     write(store.io, data, '\n')
     flush(store.io)
@@ -65,6 +70,7 @@ function convert_entry(x)
     if !haskey(x, :topic)
         x[:topic] = ""
     end
+    x[:value] = haskey(x, :value) ? JSON.parse(x[:value]) : nothing
     x[:message] = haskey(x, :message) ? JSON.parse(x[:message]) : nothing
     x
 end

@@ -54,12 +54,19 @@ function Base.print(io::IO, x::Logger)
 end
 Base.show(io::IO, x::Logger) = print(io, x)
 
+Base.copy(logger::Logger) = Logger(logger.name;
+    level=logger.level,
+    stores=copy(logger.stores),
+    children=copy(logger.children),
+    tags=copy(logger.tags)
+)
+
 """Updates tags for logger"""
 addtags!(logger::Logger, tags::Associative) = merge!(logger.tags, tags)
 cleartags!(logger::Logger) = empty!(logger.tags)
 
 """Post a message to a logger"""
-function post(logger::Logger, level::LogLevel, topic::AbstractString, message::Any;
+function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, message::Any=nothing;
     timestamp::DateTime=now(UTC), hostname::AbstractString=gethostname(), kwargs...
 )
     if level < logger.level
@@ -69,20 +76,22 @@ function post(logger::Logger, level::LogLevel, topic::AbstractString, message::A
     attributes = merge(logger.tags, Dict(kwargs))
     for store in logger.stores
         try
-            write(store, timestamp, hostname, level, logger.name, topic, message; attributes...)
+            write(store, timestamp, hostname, level, logger.name, topic, value, message; attributes...)
         catch e
             warn("Unable to write log message: ", showerror(e))
         end
     end
     # pass message to children for processing
     for child in logger.children
-        post(child, level, topic, message; timestamp=timestamp, hostname=hostname, kwargs...)
+        post(child, level, topic, value, message; timestamp=timestamp, hostname=hostname, kwargs...)
     end
     nothing
 end
-function post(logger::Logger, level::LogLevel, topic::AbstractString, message::Any, rest::Any...; kwargs...)
-    # collapse strings to a single message
-    post(logger, level, topic, string(message) * join(rest, ""); kwargs...)
+function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, exception::Exception; kwargs...)
+    post(logger, level, topic, value, showerror(exception); kwargs...)
+end
+function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, message::Any, rest::Any...; kwargs...)
+    post(logger, level, topic, value, string(message) * join(rest, ""); kwargs...)
 end
 
 end

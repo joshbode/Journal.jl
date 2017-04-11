@@ -11,11 +11,23 @@ using Compat
 
 using Base: Dates, Order
 
-"""Extracts error string"""
-function Base.showerror(e::Exception)
-    buffer = IOBuffer()
-    showerror(buffer, e)
-    String(take!(buffer))
+function check(x)
+    info = ccall(:jl_lookup_code_address, Any, (Ptr{Void}, Cint), x - 1, false)
+    info[1][1] == Symbol("")
+end
+
+"""Captures error messages and optionally the backtrace."""
+function Base.showerror(e::Exception; backtrace=true)
+    if backtrace
+        trace = catch_backtrace()[3:end]
+        i = findfirst(check, trace)
+        if i > 1
+            trace = trace[1:(i - 1)]
+        end
+        sprint((io) -> showerror(io, e, trace))
+    else
+        sprint((io) -> showerror(io, e))
+    end
 end
 
 PKG_DIR = Pkg.dir()

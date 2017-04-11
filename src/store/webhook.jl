@@ -75,11 +75,12 @@ function check(response::Response)
 end
 
 function Base.write(store::WebhookStore,
-    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
+    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString,
+    value::Any, message::Any;
     async::Bool=true, kwargs...
 )
     if async
-        @async write(store, timestamp, hostname, level, name, topic, message; async=false, kwargs...)
+        @async write(store, timestamp, hostname, level, name, topic, value, message; async=false, kwargs...)
         return
     end
 
@@ -89,9 +90,10 @@ function Base.write(store::WebhookStore,
         :__level__ => string(level),
         :__name__ => string(name),
         :__topic__ => topic,
+        :__value__ => value,
         :__message__ => message
     )
-    data = merge(store.data, Dict(k => get(palette, v, nothing) for (k, v) in store.key_map), Dict(kwargs))
+    data = merge(store.data, Dict(kwargs), Dict(k => get(palette, v, nothing) for (k, v) in store.key_map))
 
     # update headers/query parameters for authentication
     function task()

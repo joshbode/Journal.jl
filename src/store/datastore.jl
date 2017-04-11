@@ -50,11 +50,12 @@ function Base.print(io::IO, x::DatastoreStore)
 end
 
 function Base.write(store::DatastoreStore,
-    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString, message::Any;
+    timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString,
+    value::Any, message::Any;
     async::Bool=true, kwargs...
 )
     if async
-        @async write(store, timestamp, hostname, level, name, topic, message; async=false, kwargs...)
+        @async write(store, timestamp, hostname, level, name, topic, value, message; async=false, kwargs...)
         return
     end
 
@@ -65,6 +66,7 @@ function Base.write(store::DatastoreStore,
         :level => Dict(stringValue => string(level)),
         :name => Dict(stringValue => string(name)),
         :topic => Dict(stringValue => topic),
+        :value => wrap(value),
         :message => wrap(message)
     )
     merge!(properties, Dict(k => wrap(v) for (k, v) in kwargs))
