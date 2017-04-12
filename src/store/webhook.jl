@@ -79,6 +79,9 @@ function Base.write(store::WebhookStore,
     value::Any, message::Any;
     async::Bool=true, kwargs...
 )
+    if !isnull(store.authenticator)
+        get(store.authenticator)(store.headers, store.query)
+    end
     if async
         @async write(store, timestamp, hostname, level, name, topic, value, message; async=false, kwargs...)
         return
@@ -100,15 +103,12 @@ function Base.write(store::WebhookStore,
         try
             Requests.post(store.uri; json=data, headers=copy(store.headers), query=store.query, gzip_data=store.gzip)
         catch e
-            if !(isa(e, Base.UVError) && in(e.code, [Base.UV_ECONNREFUSED, Base.UV_ETIMEDOUT]))
+            if !(isa(e, Base.UVError) && in(e.code, [Base.UV_ECONNRESET, Base.UV_ECONNREFUSED, Base.UV_ETIMEDOUT]))
                 throw(e)
             end
         end
     end
 
-    if !isnull(store.authenticator)
-        get(store.authenticator)(store.headers, store.query)
-    end
     backoff(task, check, store.max_attempts, store.max_backoff)
 end
 
