@@ -51,14 +51,14 @@ function Base.write(store::IOStore,
     async::Bool=false, kwargs...
 )
     # don't write message-less entries
-    if message === nothing
+    if (value === nothing) && (message === nothing)
         return
     end
     data = store.template(;
         timestamp=Base.Dates.format(timestamp, store.timestamp_format), hostname=hostname,
-        level=level, name=name, topic=topic, value=json(value), message=json(message)
+        level=level, name=name, topic=topic, value=json(value), message=message
     )
-    write(store.io, data, '\n')
+    println(store.io, data)
     flush(store.io)
 end
 
