@@ -67,31 +67,31 @@ cleartags!(logger::Logger) = empty!(logger.tags)
 
 """Post a message to a logger"""
 function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, message::Any=nothing;
-    timestamp::DateTime=now(UTC), hostname::AbstractString=gethostname(), kwargs...
+    timestamp::DateTime=now(UTC), hostname::AbstractString=gethostname(), tags...
 )
     if level < logger.level
         # no logging necessary
         return
     end
-    attributes = merge(logger.tags, Dict(kwargs))
+    tags = merge(logger.tags, Dict(tags))
     for store in logger.stores
         try
-            write(store, timestamp, hostname, level, logger.name, topic, value, message; attributes...)
+            write(store, timestamp, hostname, level, logger.name, topic, value, message; tags...)
         catch e
             warn("Unable to write log message: ", showerror(e))
         end
     end
     # pass message to children for processing
     for child in logger.children
-        post(child, level, topic, value, message; timestamp=timestamp, hostname=hostname, kwargs...)
+        post(child, level, topic, value, message; timestamp=timestamp, hostname=hostname, tags...)
     end
     nothing
 end
-function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, exception::Exception; kwargs...)
-    post(logger, level, topic, value, showerror(exception); kwargs...)
+function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, exception::Exception; tags...)
+    post(logger, level, topic, value, showerror(exception); tags...)
 end
-function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, message::Any, rest::Any...; kwargs...)
-    post(logger, level, topic, value, string(message) * join(rest, ""); kwargs...)
+function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, message::Any, rest::Any...; tags...)
+    post(logger, level, topic, value, string(message) * join(rest, ""); tags...)
 end
 
 end

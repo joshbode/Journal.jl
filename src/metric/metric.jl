@@ -166,12 +166,16 @@ function report{T <: Associative}(x::Output,
     # evaluate the message
     attributes = merge(attributes, x.attributes)
     leader = leader(; topic=x.topic, name=name, attributes...)
-    message = isempty(result) ? "$header: No data present" : x.message(;
+    message = isempty(result) ? "$leader: No data present" : x.message(;
         leader=leader, topic=x.topic,
         data=data, series=series, result=result,
         attributes...
     )
-    post(x.logger, x.level, x.topic, message; attributes...)
+    post(
+        x.logger, x.level, x.topic,
+        Dict(:data => data, :series => series, :result => result), message;
+        attributes...
+    )
 end
 
 """A metric, comprising an input, transformation, check and output"""

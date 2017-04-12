@@ -51,11 +51,10 @@ end
 
 function Base.write(store::DatastoreStore,
     timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString,
-    value::Any, message::Any;
-    async::Bool=true, kwargs...
+    value::Any, message::Any; async::Bool=true, tags...
 )
     if async
-        @async write(store, timestamp, hostname, level, name, topic, value, message; async=false, kwargs...)
+        @async write(store, timestamp, hostname, level, name, topic, value, message; async=false, tags...)
         return
     end
 
@@ -69,7 +68,7 @@ function Base.write(store::DatastoreStore,
         :value => wrap(value),
         :message => wrap(message)
     )
-    merge!(properties, Dict(k => wrap(v) for (k, v) in kwargs))
+    merge!(properties, Dict(k => wrap(v) for (k, v) in tags))
     result = GoogleCloud.datastore(:Project, :commit, store.project;
         session=store.session, max_attempts=store.max_attempts, fields="indexUpdates",
         data=Dict(:mode => "NON_TRANSACTIONAL", :mutations => Dict(:insert => Dict(:key => key, :properties => properties)))

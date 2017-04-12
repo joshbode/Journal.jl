@@ -34,6 +34,7 @@ immutable WebhookStore <: Store
     authenticator::Nullable{Authenticator}
     max_backoff::TimePeriod
     max_attempts::Int
+    use_tags::Bool
     gzip::Bool
     function WebhookStore(uri::URI,
         key_map::Dict{Symbol, Symbol}=Dict{Symbol, Symbol}();
@@ -42,9 +43,9 @@ immutable WebhookStore <: Store
         query::Dict{Symbol, Any}=Dict{Symbol, Any}(),
         authenticator::Union{Authenticator, Void}=nothing,
         max_backoff::TimePeriod=Second(64), max_attempts::Int=10,
-        gzip::Bool=true
+        use_tags::Bool=true, gzip::Bool=true
     )
-        new(uri, key_map, data, headers, query, authenticator, max_backoff, max_attempts, gzip)
+        new(uri, key_map, data, headers, query, authenticator, max_backoff, max_attempts, use_tags, gzip)
     end
 end
 function WebhookStore(data::Dict{Symbol, Any})
@@ -76,14 +77,13 @@ end
 
 function Base.write(store::WebhookStore,
     timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString,
-    value::Any, message::Any;
-    async::Bool=true, kwargs...
+    value::Any, message::Any; async::Bool=true, tags...
 )
     if !isnull(store.authenticator)
         get(store.authenticator)(store.headers, store.query)
     end
     if async
-        @async write(store, timestamp, hostname, level, name, topic, value, message; async=false, kwargs...)
+        @async write(store, timestamp, hostname, level, name, topic, value, message; async=false, tags...)
         return
     end
 
@@ -96,7 +96,10 @@ function Base.write(store::WebhookStore,
         :__value__ => value,
         :__message__ => message
     )
-    data = merge(store.data, Dict(kwargs), Dict(k => get(palette, v, nothing) for (k, v) in store.key_map))
+    data = merge(store.data, Dict(k => get(palette, v, nothing) for (k, v) in store.key_map))
+    if store.use_tags
+        merge!(data, Dict(tags))
+    end
 
     # update headers/query parameters for authentication
     function task()

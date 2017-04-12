@@ -47,8 +47,7 @@ end
 
 function Base.write(store::IOStore,
     timestamp::DateTime, hostname::AbstractString, level::LogLevel, name::Symbol, topic::AbstractString,
-    value::Any, message::Any;
-    async::Bool=false, kwargs...
+    value::Any, message::Any; async::Bool=false, tags...
 )
     # don't write message-less entries
     if message === nothing

@@ -129,9 +129,9 @@ function getlogger(name::Symbol, namespace::Vector{Symbol}=Symbol[])
 end
 getlogger(name::String, namespace::Vector{Symbol}=Symbol[]) = getlogger(Symbol(name), namespace)
 getlogger(namespace::Vector{Symbol}=Symbol[]) = haskey(_namespaces, namespace) ? _namespaces[namespace].default : Base.error("Unknown namespace: [", join(namespace, ", "), "]")
-function Journal.getlogger(f::Function, args...; kwargs...)
+function Journal.getlogger(f::Function, args...; tags...)
     logger = copy(getlogger(args...))
-    addtags!(logger, Dict(kwargs))
+    addtags!(logger, Dict(tags))
     f(logger)
 end
 
@@ -187,15 +187,15 @@ for level in instances(LogLevel)
     f = Symbol(lowercase(string(level)))
     @eval function $f(logger::Logger, message...;
         topic::AbstractString=location(), value::Any=nothing,
-        timestamp::DateTime=now(UTC), kwargs...
+        timestamp::DateTime=now(UTC), tags...
     )
-        post(logger, $level, topic, value, message...; timestamp=timestamp, kwargs...)
+        post(logger, $level, topic, value, message...; timestamp=timestamp, tags...)
     end
     @eval function $f(message...; logger::Logger=getlogger(),
         topic::AbstractString=location(), value::Any=nothing,
-        timestamp::DateTime=now(UTC), kwargs...
+        timestamp::DateTime=now(UTC), tags...
     )
-        post(logger, $level, topic, value, message...; timestamp=timestamp, kwargs...)
+        post(logger, $level, topic, value, message...; timestamp=timestamp, tags...)
     end
 end
 
