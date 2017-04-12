@@ -50,7 +50,7 @@ function Namespace()
     suites = Dict{Symbol, Suite}()
     Namespace(stores, loggers, logger, suites)
 end
-function Namespace(data::Dict{Symbol, Any}; tags::Dict{Symbol, Any}=Dict{Symbol, Any}())
+function Namespace{T <: Any}(data::Dict{Symbol, Any}; tags::Associative{Symbol, T}=Dict{Symbol, Any}())
     if !haskey(data, :stores)
         Base.error("Journal configuration is missing 'stores' key")
     end
@@ -158,9 +158,9 @@ end
 getsuite(name::String, namespace::Vector{Symbol}=Symbol[]) = getsuite(Symbol(name), namespace)
 
 """Configures a namespace"""
-function config(data::Dict{Symbol, Any};
+function config{T <: Any}(data::Dict{Symbol, Any};
     namespace::Union{Vector{Symbol}, Void}=nothing,
-    tags::Dict{Symbol, Any}=Dict{Symbol, Any}()
+    tags::Associative{Symbol, T}=Dict{Symbol, Any}()
 )
     if (namespace === nothing)
         namespace = pop!(data, :namespace, Symbol[])
@@ -174,9 +174,9 @@ function config(data::Dict{Symbol, Any};
     _namespaces[namespace] = Namespace(data; tags=tags)
     nothing
 end
-config(filename::AbstractString;
+config{T <: Any}(filename::AbstractString;
     namespace::Union{Vector{Symbol}, Void}=nothing,
-    tags::Dict{Symbol, Any}=Dict{Symbol, Any}()
+    tags::Associative{Symbol, T}=Dict{Symbol, Any}()
 ) = config(deepconvert(Dict{Symbol, Any}, YAML.load_file(filename)); namespace=namespace, tags=tags)
 
 # create post alias for each log level
