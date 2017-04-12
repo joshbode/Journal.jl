@@ -106,7 +106,7 @@ function Base.write(store::WebhookStore,
         try
             Requests.post(store.uri; json=data, headers=copy(store.headers), query=store.query, gzip_data=store.gzip)
         catch e
-            if !(isa(e, Base.UVError) && in(e.code, [Base.UV_ECONNRESET, Base.UV_ECONNREFUSED, Base.UV_ETIMEDOUT]))
+            if !(isa(e, Base.UVError) && in(e.code, [Base.UV_ECONNRESET, Base.UV_ECONNREFUSED, Base.UV_ECONNABORTED, Base.UV_EPIPE, Base.UV_ETIMEDOUT]))
                 throw(e)
             end
         end
