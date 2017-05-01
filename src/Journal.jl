@@ -174,10 +174,15 @@ function config{T <: Any}(data::Dict{Symbol, Any};
     _namespaces[namespace] = Namespace(data; tags=tags)
     nothing
 end
-config{T <: Any}(filename::AbstractString;
+function config{T <: Any}(filename::AbstractString;
     namespace::Union{Vector{Symbol}, Void}=nothing,
     tags::Associative{Symbol, T}=Dict{Symbol, Any}()
-) = config(deepconvert(Dict{Symbol, Any}, YAML.load_file(filename)); namespace=namespace, tags=tags)
+)
+    cd(dirname(filename)) do
+        data = deepconvert(Dict{Symbol, Any}, YAML.load_file(basename(filename)))
+        config(data; namespace=namespace, tags=tags)
+    end
+end
 
 # create post alias for each log level
 for level in instances(LogLevel)
