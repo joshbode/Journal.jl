@@ -88,13 +88,13 @@ function Base.write(store::WebhookStore,
     end
 
     palette = Dict(
-        :__timestamp__ => timestamp,
-        :__hostname__ => hostname,
-        :__level__ => string(level),
-        :__name__ => string(name),
-        :__topic__ => topic,
-        :__value__ => value,
-        :__message__ => message
+        :timestamp => timestamp,
+        :hostname => hostname,
+        :level => string(level),
+        :name => string(name),
+        :topic => topic,
+        :value => value,
+        :message => message
     )
     data = merge(store.data, Dict(k => get(palette, v, nothing) for (k, v) in store.key_map))
     if store.use_tags

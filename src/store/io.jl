@@ -5,6 +5,7 @@ export IOStore
 using Base.Dates
 
 using JSON
+using TimeZones
 
 using ...Journal
 using ...utils
@@ -16,14 +17,16 @@ immutable IOStore <: Store
     template::Function
     parser::Function
     timestamp_format::DateFormat
+    timezone::TimeZone
     function IOStore(;
         io::IO=STDERR,
         format::AbstractString="\$timestamp: \$level: \$name: \$topic: \$message",
-        timestamp_format::Union{DateFormat, AbstractString}=ISODateTimeFormat
+        timestamp_format::Union{DateFormat, AbstractString}=TimeZones.ISOZonedDateTimeFormat,
+        timezone::TimeZone=localzone()
     )
         template = make_template(format)
         parser = make_parser(format)
-        new(io, template, parser, timestamp_format)
+        new(io, template, parser, timestamp_format, timezone)
     end
 end
 function IOStore(data::Dict{Symbol, Any})
@@ -37,6 +40,9 @@ function IOStore(data::Dict{Symbol, Any})
             push!(file, "w+")
         end
         data[:io] = open(file...)
+    end
+    if haskey(data, :timezone)
+        data[:timezone] = TimeZone(data[:timezone])
     end
     IOStore(; data...)
 end
@@ -53,6 +59,7 @@ function Base.write(store::IOStore,
     if message === nothing
         return
     end
+    timestamp = ZonedDateTime(timestamp, store.timezone)
     data = store.template(;
         timestamp=Base.Dates.format(timestamp, store.timestamp_format), hostname=hostname,
         level=level, name=name, topic=topic,
@@ -62,16 +69,39 @@ function Base.write(store::IOStore,
     flush(store.io)
 end
 
+"""Check if string is likely to be JSON"""
+isjson(x::AbstractString) = (
+    (first(x) in ['"', '[', '{']) ||
+    (x in ["true", "false", "null"]) ||
+    ismatch(r"^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$", x)
+)
+
 """Converts record fields to original types"""
-function convert_entry(x)
-    x[:timestamp] = DateTime(x[:timestamp], timestamp_format)
+function convert_entry(x, timestamp_format, timezone)
+    x[:timestamp] = DateTime(astimezone(ZonedDateTime(x[:timestamp], timestamp_format), timezone))
     x[:level] = haskey(x, :level) ? convert(LogLevel, x[:level]) : ON
     x[:name] = haskey(x, :name) ? Symbol(x[:name]) : Symbol()
     if !haskey(x, :topic)
-        x[:topic] = ""
+        x[:topic] = nothing
     end
-    x[:value] = haskey(x, :value) ? JSON.parse(x[:value]) : nothing
-    x[:message] = haskey(x, :message) ? JSON.parse(x[:message]) : nothing
+    if haskey(x, :value) && !isempty(x[:value])
+        if isjson(x[:value])
+            try
+                x[:value] = JSON.parse(x[:value])
+            end
+        end
+    else
+        x[:value] = nothing
+    end
+    if haskey(x, :message) && !isempty(x[:message])
+        if isjson(x[:message])
+            try
+                x[:message] = JSON.parse(x[:message])
+            end
+        end
+    else
+        x[:message] = nothing
+    end
     x
 end
 
@@ -91,12 +121,15 @@ function Base.read{T <: Any}(store::IOStore;
         warn("Unapplied filters: ", join(invalid, ", "))
         filter = Base.filter((k, v) -> in(k, [:level, :name, :topic]), filter)
     end
-    filter = map((k, v) -> k => isa(v, AbstractVector) ? v : [v], filter)
+    if !isempty(filter)
+        filter = Dict(k => isa(v, AbstractVector) ? v : [v] for (k, v) in filter)
+    end
 
     seek(store.io, 0)
     entries = map(store.parser, readlines(store.io))
     entries = Base.filter!((x) -> haskey(x, :timestamp), entries)  # remove any non-conforming records
-    entries = map!(convert_entry, entries)
+    timestamp_format, timezone = store.timestamp_format, TimeZone("UTC")
+    entries = map!((x) -> convert_entry(x, timestamp_format, timezone), entries)
 
     # apply any filters
     if (start !== nothing) || (finish !== nothing) || !isempty(filter)

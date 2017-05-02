@@ -1,7 +1,7 @@
 module utils
 
 export
-    lineage, location, frame,
+    location, frame,
     backoff,
     deepconvert, deepmerge,
     matchdict, make_template, make_parser,
@@ -31,48 +31,21 @@ function Base.showerror(e::Exception; backtrace=true)
 end
 
 PKG_DIR = Pkg.dir()
+CUR_DIR = pwd()
 
-function frame(n)
-    trace = backtrace()
-    ccall(:jl_lookup_code_address, Any, (Ptr{Void}, Cint), trace[n] - 1, false)
-end
-function location()
-    func, file, line = frame(3)[end][1:3]
+function location(n=4)
+    trace = ccall(:jl_backtrace_from_here, Vector{Ptr{Void}}, (Int32, ), false)
+    x = last(ccall(:jl_lookup_code_address, Any, (Ptr{Void}, Cint), trace[n] - 1, false))
+    func, file, line = x[1:3]
     file = string(file)
-    rel_file = relpath(file, PKG_DIR)
-    if length(rel_file) < length(file)
-        file = rel_file
+    if splitext(file)[2] == ".jl"
+        pkg_file = relpath(file, PKG_DIR)
+        cur_file = relpath(file, CUR_DIR)
+        file = first(sort([file, pkg_file, cur_file]; by=(x) -> (isabspath(x), length(x))))
+    elseif !ismatch(r"^REPL\[\d+\]$", basename(file))
+        func, file, line = "", "", -1
     end
     "$func[$file:$line]"
-end
-
-"""Produces a simple function call lineage summary from the stack trace"""
-function lineage(skip::Int=0; ignore_base::Bool=true)
-    result = Tuple[]
-    frames = stacktrace()
-    for (i, frame) in enumerate(frames)
-        file = string(frame.file)
-        if i <= skip + 1
-            continue
-        elseif !Base.isidentifier(frame.func)
-            # don't show anonymous functions
-            continue
-        elseif frame.line <= 0
-            continue
-        elseif frame.func in [:include_from_node1, :eval]
-            # stop once we hit julia low-level internals
-            break
-        elseif ignore_base && !isabspath(file)
-            # ignore julia base functions
-            continue
-        end
-        rel_file = relpath(file, PKG_DIR)
-        if length(rel_file) < length(file)
-            file = rel_file
-        end
-        push!(result, (frame.func, file, frame.line))
-    end
-    join((@sprintf("%s[%s:%d]", x...) for x in result), "|")
 end
 
 """Recursively converts dictionary key/value types"""
@@ -184,7 +157,7 @@ Makes a simple string parser function from a format string.
 Note: Won't consider expressions!
 """
 function make_parser(format::AbstractString)
-    pattern = replace(format, r"\$([a-zA-Z]\w*|\([a-zA-Z]\w*\))", s"(?<\1>.+)")
+    pattern = replace(format, r"\$([a-zA-Z]\w*|\([a-zA-Z]\w*\))", s"(?<\1>.*)")
     pattern = Regex("^$(pattern)\$")
     (x) -> convert(Dict{Symbol, Any}, matchdict(match(pattern, chomp(x))))
 end

@@ -20,7 +20,7 @@ using YAML
 function register end
 
 """Logging level"""
-@enum LogLevel UNSET=-2 OFF=-1 ON=0 DEBUG WARN INFO ERROR
+@enum LogLevel UNSET=-2 OFF=-1 ON=0 DEBUG INFO WARN ERROR
 
 level_map = Dict(string(x) => x for x in instances(LogLevel))
 Base.convert(::Type{LogLevel}, x::AbstractString) = haskey(level_map, x) ? level_map[x] : Base.error("Unknown logging level")
@@ -178,7 +178,8 @@ function config{T <: Any}(filename::AbstractString;
     namespace::Union{Vector{Symbol}, Void}=nothing,
     tags::Associative{Symbol, T}=Dict{Symbol, Any}()
 )
-    cd(dirname(filename)) do
+    directory = dirname(filename)
+    cd(!isempty(directory) ? directory : ".") do
         data = deepconvert(Dict{Symbol, Any}, YAML.load_file(basename(filename)))
         config(data; namespace=namespace, tags=tags)
     end
