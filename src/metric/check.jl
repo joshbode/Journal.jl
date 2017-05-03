@@ -2,6 +2,8 @@ module check
 
 export Check
 
+using Compat
+
 using ...Journal
 
 """Check type map"""
@@ -10,7 +12,7 @@ const check_map = Dict{Symbol, Type}()
 """Get check type"""
 checktype(check_type::Symbol) = haskey(check_map, check_type) ? check_map[check_type] : error("Unknown check type: $check_type")
 
-abstract Check
+@compat abstract type Check end
 
 Base.show(io::IO, x::Check) = print(io, x)
 

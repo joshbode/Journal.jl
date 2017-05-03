@@ -4,6 +4,7 @@ export WebhookStore, Authenticator
 
 using Base.Dates
 
+using Compat
 using JSON
 using HttpCommon
 using Requests
@@ -13,7 +14,7 @@ using ...Journal
 using ...utils
 using ..store
 
-abstract Authenticator
+@compat abstract type Authenticator end
 
 """Factory initialiser for custom Authenticators"""
 function Authenticator(data::Dict{Symbol, Any})

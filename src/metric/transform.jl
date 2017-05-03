@@ -2,6 +2,8 @@ module transform
 
 export Transform
 
+using Compat
+
 using ...Journal
 
 """Transform type map"""
@@ -10,7 +12,7 @@ const transform_map = Dict{Symbol, Type}()
 """Get transform type"""
 transformtype(transform_type::Symbol) = haskey(transform_map, transform_type) ? transform_map[transform_type] : error("Unknown transform type: $transform_type")
 
-abstract Transform
+@compat abstract type Transform end
 
 Base.show(io::IO, x::Transform) = print(io, x)
 
@@ -87,9 +89,9 @@ immutable Rolling{F <: Function} <: Transform
 end
 function Rolling(data::Dict{Symbol, Any})
     f = reduce(getfield, Main, map(Symbol, split(pop!(data, :f), '#')))::Function
-    Rolling{Type{f}}(; data...)
+    Rolling{typeof(f)}(; data...)
 end
-function (t::Rolling{Type{mean}})(x::AbstractVector)
+function (t::Rolling{typeof(mean)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
     result = Array(Float64, n - k + 1)
@@ -101,7 +103,7 @@ function (t::Rolling{Type{mean}})(x::AbstractVector)
     end
     (result, k:n)
 end
-function (t::Rolling{Type{sum}})(x::AbstractVector)
+function (t::Rolling{typeof(sum)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
     result = Array(eltype(x), n - k + 1)
@@ -113,7 +115,7 @@ function (t::Rolling{Type{sum}})(x::AbstractVector)
     end
     (result, k:n)
 end
-function (t::Rolling{Type{min}})(x::AbstractVector)
+function (t::Rolling{typeof(min)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
     result = Array(Float64, n - k + 1)
@@ -133,7 +135,7 @@ function (t::Rolling{Type{min}})(x::AbstractVector)
     end
     (result, k:n)
 end
-function (t::Rolling{Type{max}})(x::AbstractVector)
+function (t::Rolling{typeof(max)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
     result = Array(Float64, n - k + 1)

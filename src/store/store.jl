@@ -3,6 +3,8 @@ module store
 export
     Store, IOStore, WebhookStore, DatastoreStore
 
+using Compat
+
 using ..Journal
 
 """Store type map"""
@@ -11,7 +13,7 @@ const store_map = Dict{Symbol, Type}()
 """Get store type"""
 storetype(store_type::Symbol) = haskey(store_map, store_type) ? store_map[store_type] : error("Unknown store type: $store_type")
 
-abstract Store
+@compat abstract type Store end
 
 Base.show(io::IO, x::Store) = print(io, x)
 
