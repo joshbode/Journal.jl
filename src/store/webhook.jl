@@ -69,7 +69,8 @@ function check(response::Response)
     status = statuscode(response)
     if (div(status, 100) == 5) || (status == 429)
         reason = HttpCommon.STATUS_CODES[status]
-        Base.warn("Attempt failed: $reason ($status) ", get(response.request).uri)
+        uri = get(response.request).uri
+        Base.warn("Attempt failed ($uri): $reason ($status)")
         false
     else
         true
@@ -110,6 +111,7 @@ function Base.write(store::WebhookStore,
             if !(isa(e, Base.UVError) && in(e.code, [Base.UV_ECONNRESET, Base.UV_ECONNREFUSED, Base.UV_ECONNABORTED, Base.UV_EPIPE, Base.UV_ETIMEDOUT]))
                 throw(e)
             end
+            Base.warn("Attempt failed ($(store.uri)): ", showerror(e; backtrace=false))
         end
     end
 
