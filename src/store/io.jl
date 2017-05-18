@@ -59,7 +59,7 @@ function Base.write(store::IOStore,
     if message === nothing
         return
     end
-    timestamp = ZonedDateTime(timestamp, store.timezone)
+    timestamp = astimezone(ZonedDateTime(timestamp, TimeZone("UTC")), store.timezone)
     data = store.template(;
         timestamp=Base.Dates.format(timestamp, store.timestamp_format), hostname=hostname,
         level=level, name=name, topic=topic,
