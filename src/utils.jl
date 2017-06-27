@@ -1,7 +1,7 @@
 module utils
 
 export
-    location, frame,
+    location, frame, show_error,
     backoff,
     deepconvert, deepmerge,
     matchdict, make_template, make_parser,
@@ -17,14 +17,10 @@ function check(x)
 end
 
 """Captures error messages and optionally the backtrace."""
-function Base.showerror(e::Exception; backtrace=true)
+function show_error(e::Exception; backtrace=true)
     if backtrace
-        trace = catch_backtrace()[3:end]
-        i = findfirst(check, trace)
-        if i > 1
-            trace = trace[1:(i - 1)]
-        end
-        sprint((io) -> showerror(io, e, trace))
+        trace = catch_backtrace()
+        sprint((io) -> showerror(io, e, trace[3:end]))
     else
         sprint((io) -> showerror(io, e))
     end

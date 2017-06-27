@@ -111,7 +111,7 @@ function Base.write(store::WebhookStore,
             if !(isa(e, Base.UVError) && in(e.code, [Base.UV_ECONNRESET, Base.UV_ECONNREFUSED, Base.UV_ECONNABORTED, Base.UV_EPIPE, Base.UV_ETIMEDOUT]))
                 throw(e)
             end
-            Base.warn("Attempt failed ($(store.uri)): ", showerror(e; backtrace=false))
+            Base.warn("Attempt failed ($(store.uri)): ", show_error(e; backtrace=false))
         end
     end
 

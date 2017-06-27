@@ -78,7 +78,7 @@ function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any
         try
             write(store, timestamp, hostname, level, logger.name, topic, value, message; tags...)
         catch e
-            warn("Unable to write log message: ", showerror(e))
+            warn("Unable to write log message: ", show_error(e))
         end
     end
     # pass message to children for processing
@@ -88,7 +88,7 @@ function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any
     nothing
 end
 function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, exception::Exception; tags...)
-    post(logger, level, topic, value, showerror(exception); tags...)
+    post(logger, level, topic, value, show_error(exception); tags...)
 end
 function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, message::Any, rest::Any...; tags...)
     post(logger, level, topic, value, string(message) * join(rest, ""); tags...)
