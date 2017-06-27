@@ -20,7 +20,7 @@ end
 function show_error(e::Exception; backtrace=true)
     if backtrace
         trace = catch_backtrace()
-        sprint((io) -> showerror(io, e, trace[3:end]))
+        sprint((io) -> showerror(io, e, trace))
     else
         sprint((io) -> showerror(io, e))
     end
