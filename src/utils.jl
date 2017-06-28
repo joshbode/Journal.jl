@@ -80,7 +80,7 @@ function backoff(task::Function, check::Function, max_attempts::Int, max_backoff
         if (result !== nothing) && check(result)
             break
         elseif attempt < max_attempts
-            delay = min(Millisecond(2 ^ attempt + floor(rand() * 1000)), max_backoff)
+            delay = min(Millisecond(floor(Int, 1000 * (2 ^ (attempt - 1) + rand()))), max_backoff)
             warn("Unable to complete request: Retrying ($attempt/$max_attempts) in $delay")
             sleep(delay / Millisecond(Second(1)))
         else
