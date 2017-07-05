@@ -159,22 +159,17 @@ end
 
 """General function transform"""
 immutable General <: Transform
-    wrapper::Function
-    function General(f::Function;
-        args::AbstractVector{Any}=Any[],
-        kwargs::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-        vectorise::Bool=false
-    )
-        wrapper = (x) -> f([collect(x); args]...; kwargs...)
-        new(vectorise ? (x) -> map((a...) -> wrapper(a), x...) : wrapper)
-    end
+    f::Function
+    args::Vector{Any}
+    kwargs::Dict{Symbol, Any}
+    General(f::Function; args::AbstractVector=[], kwargs::Associative{Symbol}=Dict{Symbol, Any}()) = new(f, args, kwargs)
 end
 function General(data::Dict{Symbol, Any})
     f = replace(pop!(data, :f), r"(?<=\w)\.(?=\w)", "#")  # don't replace dot in operator names (e.g. .<=)
     f = reduce(getfield, Main, map(Symbol, split(f, '#')))::Function
     General(f; data...)
 end
-(t::General)(x::AbstractVector...) = (t.wrapper(x), 1:length(x))
+(t::General)(x::AbstractVector...) = (t.f.([collect(x); t.args]...; t.kwargs...), 1:length(x))
 
 """Initialise the module: add transforms to transform map"""
 function __init__()
