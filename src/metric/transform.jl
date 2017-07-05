@@ -54,7 +54,7 @@ immutable Standard <: Transform
     end
 end
 Standard(data::Dict{Symbol, Any}) = Standard(; data...)
-(t::Standard)(x::AbstractVector) = (map!((v) -> min(max(v, t.floor), t.ceiling), Array(Float64, length(x)), (x .- t.shift) ./ t.scale), 1:length(x))
+(t::Standard)(x::AbstractVector) = (map!((v) -> min(max(v, t.floor), t.ceiling), Vector{Float64}(length(x)), (x .- t.shift) ./ t.scale), 1:length(x))
 
 
 """Offset difference transform"""
@@ -78,13 +78,13 @@ end
 """Rolling transform"""
 immutable Rolling{F <: Function} <: Transform
     width::Int
-    function Rolling(;
+    function Rolling{F}(;
         width::Integer=1
-    )
+    ) where F
         if width <= 0
             error("Rolling transform width must be positive")
         end
-        new(width)
+        new{F}(width)
     end
 end
 function Rolling(data::Dict{Symbol, Any})
@@ -94,7 +94,7 @@ end
 function (t::Rolling{typeof(mean)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
-    result = Array(Float64, n - k + 1)
+    result = Vector{Float64}(n - k + 1)
     state = mean(x[1:k])
     result[1] = state
     for i = (k + 1):n
@@ -106,7 +106,7 @@ end
 function (t::Rolling{typeof(sum)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
-    result = Array(eltype(x), n - k + 1)
+    result = Vector{eltype(x)}(n - k + 1)
     state = sum(x[1:k])
     result[1] = state
     for i = (k + 1):n
@@ -118,8 +118,8 @@ end
 function (t::Rolling{typeof(min)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
-    result = Array(Float64, n - k + 1)
-    state = Array(eltype(x), k)
+    result = Vector{Float64}(n - k + 1)
+    state = Vector{eltype(x)}(k)
     state[:] = x[1:k]
     value, index = findmin(state)
     result[1] = value
@@ -138,8 +138,8 @@ end
 function (t::Rolling{typeof(max)})(x::AbstractVector)
     n = length(x)
     k = min(t.width, n)
-    result = Array(Float64, n - k + 1)
-    state = Array(eltype(x), k)
+    result = Vector{Float64}(n - k + 1)
+    state = Vector{eltype(x)}(k)
     state[:] = x[1:k]
     value, index = findmax(state)
     result[1] = value

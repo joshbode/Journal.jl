@@ -39,9 +39,7 @@ end
 immutable Range{T <: Real} <: Check
     min::T
     max::T
-    function Range(; min::T=typemin(T), max::T=typemax(T))
-        new(min, max)
-    end
+    Range{T}(; min::T=typemin(T), max::T=typemax(T)) where T = new{T}(min, max)
 end
 function Range(data::Dict{Symbol, Any})
     if haskey(data, :min) && haskey(data, :max)
@@ -63,7 +61,7 @@ end
 immutable Value{T <: Real} <: Check
     value::T
     tolerance::T
-    Value(value::T; tolerance::T=sqrt(eps)) = new(value, tolerance)
+    Value{T}(value::T; tolerance::T=sqrt(eps)) where T = new{T}(value, tolerance)
 end
 function Value(data::Dict{Symbol, Any})
     value = pop!(data, :value)
