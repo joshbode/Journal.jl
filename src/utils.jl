@@ -26,6 +26,7 @@ function show_error(e::Exception; backtrace=true)
     end
 end
 
+
 PKG_DIR = Pkg.dir()
 CUR_DIR = pwd()
 
@@ -45,8 +46,7 @@ function location(n=4)
 end
 
 """Recursively converts dictionary key/value types"""
-#function deepconvert{K, V, S <: Associative{K, V}}(T::Type{S}, x::Any)
-function deepconvert{K, V}(T::Type{Dict{K, V}}, x::Any)
+function deepconvert(T::Type{<: Associative{K, V}}, x::Any) where {K, V}
     if isa(x, Associative)
         T(convert(K, k) => deepconvert(T, v) for (k, v) in x)
     elseif isa(x, AbstractVector)
@@ -57,8 +57,7 @@ function deepconvert{K, V}(T::Type{Dict{K, V}}, x::Any)
 end
 
 """Recursively merge dictionaries"""
-#function deepmerge{K, V, T <: Associative{K, V}}(x::T, y::T)
-function deepmerge{K, V}(x::Dict{K, V}, y::Dict{K, V})
+function deepmerge(x::Associative{<: K, <: V}, y::Associative{<: K, <: V}) where {K, V}
     result = filter((k, v) -> !haskey(x, v), y)
     for (k, v) in x
         if !haskey(y, k)

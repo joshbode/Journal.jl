@@ -91,7 +91,7 @@ function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any
     post(logger, level, topic, value, show_error(exception); tags...)
 end
 function post(logger::Logger, level::LogLevel, topic::AbstractString, value::Any, message::Any, rest::Any...; tags...)
-    post(logger, level, topic, value, string(message) * join(rest, ""); tags...)
+    post(logger, level, topic, value, join([message; rest...], ""); tags...)
 end
 
 end
