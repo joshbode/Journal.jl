@@ -8,6 +8,7 @@ using Compat
 using JSON
 using HttpCommon
 using Requests
+using MbedTLS
 using URIParser
 
 using ...Journal
@@ -108,8 +109,10 @@ function Base.write(store::WebhookStore,
         try
             Requests.post(store.uri; json=data, headers=copy(store.headers), query=store.query, gzip_data=store.gzip)
         catch e
-            if !(isa(e, Base.UVError) && in(e.code, [Base.UV_ECONNRESET, Base.UV_ECONNREFUSED, Base.UV_ECONNABORTED, Base.UV_EPIPE, Base.UV_ETIMEDOUT]))
-                throw(e)
+            if isa(e, Base.UVError) && e.code in (Base.UV_ECONNRESET, Base.UV_ECONNREFUSED, Base.UV_ECONNABORTED, Base.UV_EPIPE, Base.UV_ETIMEDOUT)
+            elseif isa(e, MbedTLS.MbedExeption) && e.ret in (MbedTLS.MBEDTLS_ERR_SSL_TIMEOUT, MbedTLS.MBEDTLS_ERR_SSL_CONN_EOF)
+            else
+                rethrow(e)
             end
             Base.warn("Attempt failed ($(store.uri)): ", show_error(e; backtrace=false))
         end
