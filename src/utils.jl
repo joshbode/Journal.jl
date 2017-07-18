@@ -57,8 +57,9 @@ function deepconvert(T::Type{<: Associative{K, V}}, x::Any) where {K, V}
 end
 
 """Recursively merge dictionaries"""
-function deepmerge(x::Associative{<: K, <: V}, y::Associative{<: K, <: V}) where {K, V}
-    result = filter((k, v) -> !haskey(x, v), y)
+function deepmerge(x::Associative, y::Associative)
+    K, V = Union{keytype(x), keytype(y)}, Union{valtype(x), valtype(y)}
+    result = Dict{K, V}(k => v for (k, v) in y if !haskey(x, v))
     for (k, v) in x
         if !haskey(y, k)
             result[k] = v
@@ -69,7 +70,7 @@ function deepmerge(x::Associative{<: K, <: V}, y::Associative{<: K, <: V}) where
     end
     result
 end
-deepmerge{T}(x::T, y::T, z::T...) = deepmerge(deepmerge(x, y), z...)
+deepmerge(x::Associative, y::Associative, z::Associative...) = deepmerge(deepmerge(x, y), z...)
 
 """Backoff attempts of `task` exponentially"""
 function backoff(task::Function, check::Function, max_attempts::Int, max_backoff::TimePeriod)
