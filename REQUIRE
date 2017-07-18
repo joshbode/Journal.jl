@@ -6,6 +6,7 @@ Mocking
 JSON
 YAML
 Requests
+MbedTLS
 URIParser
 HttpCommon
 DataStructures
