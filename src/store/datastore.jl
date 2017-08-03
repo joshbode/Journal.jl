@@ -12,14 +12,14 @@ using ...Journal
 using ..store
 
 """Google Datastore log store"""
-immutable DatastoreStore <: Store
+struct DatastoreStore <: Store
     session::GoogleSession
     project::String
     path::Vector{Dict{Symbol, String}}
     max_backoff::TimePeriod
     max_attempts::Int
     function DatastoreStore(
-        credentials::GoogleCredentials,
+        credentials::JSONCredentials,
         scopes::Vector{String}=["datastore"],
         path::Vector{Dict{Symbol, String}}=[Dict(:kind => "log")],
         max_backoff::TimePeriod=Second(64), max_attempts::Int=10
@@ -41,7 +41,7 @@ immutable DatastoreStore <: Store
     end
 end
 function DatastoreStore(data::Dict{Symbol, Any})
-    credentials = GoogleCredentials(pop!(data, :credentials))
+    credentials = JSONCredentials(pop!(data, :credentials))
     DatastoreStore(credentials; data...)
 end
 

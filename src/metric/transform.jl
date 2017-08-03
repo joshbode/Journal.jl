@@ -2,8 +2,6 @@ module transform
 
 export Transform
 
-using Compat
-
 using ...Journal
 
 """Transform type map"""
@@ -12,7 +10,7 @@ const transform_map = Dict{Symbol, Type}()
 """Get transform type"""
 transformtype(transform_type::Symbol) = haskey(transform_map, transform_type) ? transform_map[transform_type] : error("Unknown transform type: $transform_type")
 
-@compat abstract type Transform end
+abstract type Transform end
 
 Base.show(io::IO, x::Transform) = print(io, x)
 
@@ -30,13 +28,13 @@ end
 
 
 """Identity transform"""
-immutable Identity <: Transform end
+struct Identity <: Transform end
 Identity(data::Dict{Symbol, Any}) = Identity(; data...)
 (t::Identity)(x::AbstractArray) = (x, 1:length(x))
 
 
 """Standard transform"""
-immutable Standard <: Transform
+struct Standard <: Transform
     shift::Float64
     scale::Float64
     floor::Float64
@@ -58,7 +56,7 @@ Standard(data::Dict{Symbol, Any}) = Standard(; data...)
 
 
 """Offset difference transform"""
-immutable Difference <: Transform
+struct Difference <: Transform
     offset::Int
     relative::Bool
     Difference(; offset::Integer=1, relative::Bool=true) = new(offset, relative)
@@ -76,7 +74,7 @@ end
 
 
 """Rolling transform"""
-immutable Rolling{F <: Function} <: Transform
+struct Rolling{F <: Function} <: Transform
     width::Int
     function Rolling{F}(;
         width::Integer=1
@@ -158,7 +156,7 @@ end
 
 
 """General function transform"""
-immutable General <: Transform
+struct General <: Transform
     f::Function
     args::Vector{Any}
     kwargs::Dict{Symbol, Any}

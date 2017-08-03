@@ -4,7 +4,6 @@ export WebhookStore, Authenticator
 
 using Base.Dates
 
-using Compat
 using JSON
 using HttpCommon
 using Requests
@@ -15,7 +14,7 @@ using ...Journal
 using ...utils
 using ..store
 
-@compat abstract type Authenticator end
+abstract type Authenticator end
 
 """Factory initialiser for custom Authenticators"""
 function Authenticator(data::Dict{Symbol, Any})
@@ -27,7 +26,7 @@ function Authenticator(data::Dict{Symbol, Any})
 end
 
 """Webhook log store"""
-immutable WebhookStore <: Store
+struct WebhookStore <: Store
     uri::URI
     key_map::Dict{Symbol, Symbol}
     data::Dict{Symbol, Any}

@@ -8,7 +8,7 @@ using ..Journal
 using ..utils
 using ..store
 
-immutable Logger
+struct Logger
     name::Symbol
     level::LogLevel
     stores::Vector{Store}

@@ -13,7 +13,6 @@ export
 
 using Base.Dates
 
-using Compat
 using DataStructures
 using YAML
 
@@ -36,7 +35,7 @@ importall .logger
 importall .metric
 
 """Namespaces encapsulate site configuration for a loggers, stores and metric suites"""
-immutable Namespace
+struct Namespace
     stores::Dict{Symbol, Store}
     loggers::Dict{Symbol, Logger}
     default::Logger

@@ -12,7 +12,7 @@ using ...utils
 using ..store
 
 """Basic IO (files, streams) log store"""
-immutable IOStore <: Store
+struct IOStore <: Store
     io::IO
     template::Function
     parser::Function

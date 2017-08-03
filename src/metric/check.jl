@@ -2,8 +2,6 @@ module check
 
 export Check
 
-using Compat
-
 using ...Journal
 
 """Check type map"""
@@ -12,7 +10,7 @@ const check_map = Dict{Symbol, Type}()
 """Get check type"""
 checktype(check_type::Symbol) = haskey(check_map, check_type) ? check_map[check_type] : error("Unknown check type: $check_type")
 
-@compat abstract type Check end
+abstract type Check end
 
 Base.show(io::IO, x::Check) = print(io, x)
 
@@ -28,7 +26,7 @@ function Journal.register{S <: Check}(::Type{S}, check_type::Symbol)
     check_map[check_type] = S
 end
 
-immutable Tautology <: Check end
+struct Tautology <: Check end
 (c::Tautology)(x::AbstractVector) = trues(x)
 
 function Base.print(io::IO, x::Tautology)
@@ -36,7 +34,7 @@ function Base.print(io::IO, x::Tautology)
 end
 
 
-immutable Range{T <: Real} <: Check
+struct Range{T <: Real} <: Check
     min::T
     max::T
     Range{T}(; min::T=typemin(T), max::T=typemax(T)) where T = new{T}(min, max)
@@ -58,7 +56,7 @@ end
 (c::Range)(x::AbstractVector) = c.min .<= x .<= c.max
 
 
-immutable Value{T <: Real} <: Check
+struct Value{T <: Real} <: Check
     value::T
     tolerance::T
     Value{T}(value::T; tolerance::T=sqrt(eps)) where T = new{T}(value, tolerance)

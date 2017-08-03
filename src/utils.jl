@@ -7,8 +7,6 @@ export
     matchdict, make_template, make_parser,
     coarsen
 
-using Compat
-
 using Base: Dates, Order
 
 function check(x)

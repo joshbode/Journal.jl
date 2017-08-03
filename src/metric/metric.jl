@@ -30,7 +30,7 @@ end
 order_map = Dict{String, Ordering}("first" => Forward, "last" => Reverse)
 
 """Represents the input for a metric"""
-immutable Input
+struct Input
     period::Nullable{Period}
     frequency::Nullable{Period}
     sample::Union{ForwardOrdering, ReverseOrdering{ForwardOrdering}}
@@ -103,7 +103,7 @@ function retrieve(x::Input;
 end
 
 """Represents the output for a metric"""
-immutable Output
+struct Output
     period::Nullable{Period}
     frequency::Nullable{Period}
     sample::Union{ForwardOrdering, ReverseOrdering{ForwardOrdering}}
@@ -179,7 +179,7 @@ function report{T <: Associative}(x::Output,
 end
 
 """A metric, comprising an input, transformation, check and output"""
-immutable Metric
+struct Metric
     name::String
     attributes::Dict{Symbol, Any}
     active::Bool
@@ -240,7 +240,7 @@ function evaluate(x::Metric, leader::Function;
 end
 
 """A collection of metrics"""
-immutable Suite
+struct Suite
     attributes::Vector{Symbol}
     leader::Function
     metrics::Dict{String, Metric}
