@@ -3,7 +3,7 @@ module utils
 export
     location, frame, show_error,
     backoff,
-    deepconvert, deepmerge,
+    dicttypeconvert, deepmerge,
     matchdict, make_template, make_parser,
     coarsen
 
@@ -44,31 +44,20 @@ function location(n=4)
 end
 
 """Recursively converts dictionary key/value types"""
-function deepconvert(T::Type{<: Associative{K, V}}, x::Any) where {K, V}
-    if isa(x, Associative)
-        T(convert(K, k) => deepconvert(T, v) for (k, v) in x)
-    elseif isa(x, AbstractVector)
-        map((a) -> deepconvert(T, a), x)
-    else
-        convert(V, x)
-    end
-end
+dicttypeconvert(T::Type{<: Associative{K, V}}, x::Associative) where {K, V} = T(convert(K, k) => dicttypeconvert(T, v) for (k, v) in x)
+dicttypeconvert(T::Type{<: Associative{K, V}}, x::AbstractVector) where {K, V} = dicttypeconvert.(T, x)
+dicttypeconvert(T::Type{<: Associative{K, V}}, x::Any) where {K, V} = convert(V, x)
 
-"""Recursively merge dictionaries"""
-function deepmerge(x::Associative, y::Associative)
-    K, V = Union{keytype(x), keytype(y)}, Union{valtype(x), valtype(y)}
-    result = Dict{K, V}(k => v for (k, v) in y if !haskey(x, v))
-    for (k, v) in x
-        if !haskey(y, k)
-            result[k] = v
-            continue
-        end
-        w = y[k]
-        result[k] = (isa(v, Associative) && isa(w, Associative)) ? deepmerge(v, w) : w
+"""Recursively merge dictionaries, deferring to rightmost value and the key/value type of the leftmost (if available)"""
+function deepmerge(x::Associative{K1, V1}, y::Associative{K2, V2}) where {K1, V1, K2 <: K1, V2 <: V1}
+    result = copy(x)
+    for (k, v) in y
+        result[k] = deepmerge(get(result, k, nothing), v)
     end
     result
 end
-deepmerge(x::Associative, y::Associative, z::Associative...) = deepmerge(deepmerge(x, y), z...)
+deepmerge(x::Any, y::Any) = y
+deepmerge(x::Associative, y::Associative) = deepmerge(x, convert(typeof(x), y))
 
 """Backoff attempts of `task` exponentially"""
 function backoff(task::Function, check::Function, max_attempts::Int, max_backoff::TimePeriod)

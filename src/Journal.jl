@@ -179,7 +179,7 @@ function config{T <: Any}(filename::AbstractString;
 )
     directory = dirname(filename)
     cd(!isempty(directory) ? directory : ".") do
-        data = deepconvert(Dict{Symbol, Any}, YAML.load_file(basename(filename)))
+        data = dicttypeconvert(Dict{Symbol, Any}, YAML.load_file(basename(filename)))
         config(data; namespace=namespace, tags=tags)
     end
 end
