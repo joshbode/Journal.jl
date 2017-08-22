@@ -8,7 +8,7 @@ module Journal
 
 export
     LogLevel,
-    getlogger, getstore, getsuite,
+    getlogger, getstore,
     register
 
 using Base.Dates
@@ -27,27 +27,23 @@ Base.convert(::Type{LogLevel}, x::AbstractString) = haskey(level_map, x) ? level
 include("utils.jl")
 include("store/store.jl")
 include("logger.jl")
-include("metric/metric.jl")
 
 importall .utils
 importall .store
 importall .logger
-importall .metric
 
-"""Namespaces encapsulate site configuration for a loggers, stores and metric suites"""
+"""Namespaces encapsulate site configuration for a loggers and stores"""
 struct Namespace
     stores::Dict{Symbol, Store}
     loggers::Dict{Symbol, Logger}
     default::Logger
-    suites::Dict{Symbol, Suite}
 end
 function Namespace()
     store = IOStore()
     logger = Logger(:_; level=INFO, stores=[store])
     stores = Dict{Symbol, Store}(:_ => store)
     loggers = Dict{Symbol, Logger}(:_ => logger)
-    suites = Dict{Symbol, Suite}()
-    Namespace(stores, loggers, logger, suites)
+    Namespace(stores, loggers, logger)
 end
 function Namespace{T <: Any}(data::Dict{Symbol, Any}; tags::Associative{Symbol, T}=Dict{Symbol, Any}())
     if !haskey(data, :stores)
@@ -107,11 +103,7 @@ function Namespace{T <: Any}(data::Dict{Symbol, Any}; tags::Associative{Symbol, 
         # choose the "last" (undefined!) apical logger
         default = loggers[final]
     end
-    suites = Dict{Symbol, Suite}(
-        name => Suite(x; stores=stores, loggers=loggers)
-        for (name, x) in get(data, :suites, [])
-    )
-    Namespace(stores, loggers, default, suites)
+    Namespace(stores, loggers, default)
 end
 
 """Namespaces"""
@@ -144,17 +136,6 @@ function getstore(name::Symbol, namespace::Vector{Symbol}=Symbol[])
     _namespaces[namespace].stores[name]
 end
 getstore(name::String, namespace::Vector{Symbol}=Symbol[]) = getstore(Symbol(name), namespace)
-
-"""Gets a suite by name (optionally within a namespace)"""
-function getsuite(name::Symbol, namespace::Vector{Symbol}=Symbol[])
-    if !haskey(_namespaces, namespace)
-        Base.error("Unknown namespace: [", join(namespace, ", "), "]")
-    elseif !haskey(_namespaces[namespace].suites, name)
-        Base.error("Unknown suite name: [", join([namespace; name], ", "), "]")
-    end
-    _namespaces[namespace].suites[name]
-end
-getsuite(name::String, namespace::Vector{Symbol}=Symbol[]) = getsuite(Symbol(name), namespace)
 
 """Configures a namespace"""
 function config{T <: Any}(data::Dict{Symbol, Any};
