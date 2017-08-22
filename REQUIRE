@@ -1,7 +1,6 @@
 julia 0.6
 
 GoogleCloud
-Mocking
 JSON
 YAML
 Requests
@@ -9,3 +8,4 @@ MbedTLS
 URIParser
 HttpCommon
 DataStructures
+TimeZones
