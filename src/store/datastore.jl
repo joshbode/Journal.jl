@@ -19,8 +19,7 @@ struct DatastoreStore <: Store
     max_backoff::TimePeriod
     max_attempts::Int
     function DatastoreStore(
-        credentials::JSONCredentials,
-        scopes::Vector{String}=["datastore"],
+        session::GoogleSession,
         path::Vector{Dict{Symbol, String}}=[Dict(:kind => "log")],
         max_backoff::TimePeriod=Second(64), max_attempts::Int=10
     )
@@ -35,14 +34,14 @@ struct DatastoreStore <: Store
         if haskey(last(path), :name)
             error("Last path element must have no name: ", json(path))
         end
-        session = GoogleSession(credentials, scopes)
         project = session.credentials.project_id
         new(session, project, path, max_backoff, max_attempts)
     end
 end
 function DatastoreStore(data::Dict{Symbol, Any})
-    credentials = JSONCredentials(pop!(data, :credentials))
-    DatastoreStore(credentials; data...)
+    credentials = pop!(data, :credentials, nothing)
+    session = GoogleSession(credentials, ["datastore"])
+    DatastoreStore(session; data...)
 end
 
 function Base.print(io::IO, x::DatastoreStore)
